@@ -6,10 +6,11 @@
           v-for="item in list"
           :key="item.id"
           type="button"
-          :class="$style.card"
+          :class="[$style.card, { [$style.disabled]: !isDetailSupported }]"
           @click="openDetail(item)"
         >
-          <img :class="{ [$style.artistPic]: type == 'singer' }" :src="item.picUrl" loading="lazy" decoding="async">
+          <img v-if="item.picUrl" :class="{ [$style.artistPic]: type == 'singer' }" :src="item.picUrl" loading="lazy" decoding="async">
+          <div v-else :class="{ [$style.picPlaceholder]: true, [$style.artistPic]: type == 'singer' }"></div>
           <strong>{{ item.name }}</strong>
           <span v-if="type == 'singer' && item.alias?.length">{{ item.alias.join(' / ') }}</span>
           <span v-else-if="type == 'singer'">{{ formatSingerStats(item) }}</span>
@@ -30,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from '@common/utils/vueTools'
+import { computed, ref, watch } from '@common/utils/vueTools'
 import { searchText } from '@renderer/store/search/state'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import musicSdk from '@renderer/utils/musicSdk'
@@ -40,6 +41,7 @@ type ResultType = 'singer' | 'album'
 const props = defineProps<{
   type: ResultType
   page: number
+  sourceId: string
 }>()
 
 const router = useRouter()
@@ -51,6 +53,14 @@ const pageInfo = ref(1)
 const noItemLabel = ref('')
 const key = ref('')
 
+// 支持点击进入详情页的（源，类型）组合
+// wy 走原 /netease 路由；其余走 /artist、/album 详情页
+// mg 专辑搜索结果为长 id，无法查询专辑歌曲，仍不支持
+const DETAIL_UNSUPPORTED = new Set([
+  'mg__album',
+])
+const isDetailSupported = computed(() => !DETAIL_UNSUPPORTED.has(`${props.sourceId}__${props.type}`))
+
 const load = async(text: string, type: ResultType, page: number) => {
   if (!text) {
     list.value = []
@@ -60,20 +70,23 @@ const load = async(text: string, type: ResultType, page: number) => {
     key.value = ''
     return
   }
-  const nextKey = `${type}__${page}__${text}`
+  const nextKey = `${props.sourceId}__${type}__${page}__${text}`
   if (key.value == nextKey && list.value.length) return
   key.value = nextKey
   noItemLabel.value = window.i18n.t('list__loading')
   try {
+    const targetSdk = (musicSdk as any)[props.sourceId]
     const result = type == 'singer'
-      ? await musicSdk.wy.musicSearch.searchSinger(text, page)
-      : await musicSdk.wy.musicSearch.searchAlbum(text, page)
+      ? await targetSdk.musicSearch.searchSinger(text, page)
+      : await targetSdk.musicSearch.searchAlbum(text, page)
     if (key.value != nextKey) return
     list.value = result.list
     total.value = result.total
     limit.value = result.limit
     pageInfo.value = page
     noItemLabel.value = text && !result.list.length && page == 1 ? window.i18n.t('no_item') : ''
+    // kg 歌手搜索接口不返回图片，异步补全后原位更新
+    if (result.fillPics) void result.fillPics(list.value)
   } catch (err) {
     if (key.value != nextKey) return
     list.value = []
@@ -83,7 +96,7 @@ const load = async(text: string, type: ResultType, page: number) => {
   }
 }
 
-watch(() => [props.type, props.page, searchText.value], ([type, page, text]) => {
+watch(() => [props.type, props.page, props.sourceId, searchText.value], ([type, page, sourceId, text]) => {
   setTimeout(() => {
     void load(String(text), type as ResultType, Number(page) || 1)
   })
@@ -102,36 +115,62 @@ const togglePage = (page: number) => {
 }
 
 const openDetail = (item: any) => {
+  if (!isDetailSupported.value) return
   if (props.type == 'singer') {
+    if (props.sourceId == 'wy') {
+      void router.push({
+        path: '/netease/artist',
+        query: {
+          id: String(item.id),
+          name: item.name,
+        },
+      })
+    } else {
+      void router.push({
+        path: '/artist',
+        query: {
+          source: props.sourceId,
+          id: String(item.id),
+          name: item.name,
+        },
+      })
+    }
+    return
+  }
+  if (props.sourceId == 'wy') {
     void router.push({
-      path: '/netease/artist',
+      path: '/netease/album',
       query: {
         id: String(item.id),
         name: item.name,
       },
     })
-    return
+  } else if (props.sourceId != 'mg') {
+    void router.push({
+      path: '/album',
+      query: {
+        source: props.sourceId,
+        id: String(item.id),
+        name: item.name,
+      },
+    })
   }
-  void router.push({
-    path: '/netease/album',
-    query: {
-      id: String(item.id),
-      name: item.name,
-    },
-  })
 }
 
 const formatSingerStats = (item: any) => {
   const parts = []
   if (item.musicSize != null) parts.push(`${item.musicSize} 首歌`)
   if (item.albumSize != null) parts.push(`${item.albumSize} 张专辑`)
-  return parts.join(' / ') || '网易云歌手'
+  return parts.join(' / ')
 }
 
 const formatAlbumInfo = (item: any) => {
   const parts = []
   if (item.size != null) parts.push(`${item.size} 首`)
-  if (item.publishTime) parts.push(new Date(item.publishTime).toLocaleDateString())
+  if (item.publishTime) {
+    const date = new Date(item.publishTime)
+    parts.push(isNaN(date.getTime()) ? String(item.publishTime) : date.toLocaleDateString())
+  }
   return parts.join(' / ')
 }
 </script>
@@ -173,12 +212,28 @@ const formatAlbumInfo = (item: any) => {
     transform: translateY(-2px);
   }
 
+  &.disabled {
+    cursor: default;
+
+    &:hover {
+      background: transparent;
+      transform: none;
+    }
+  }
+
   img {
     width: 100%;
     aspect-ratio: 1 / 1;
     border-radius: 8px;
     object-fit: cover;
     background: var(--color-primary-alpha-900);
+  }
+
+  .picPlaceholder {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--color-primary-alpha-900), var(--color-primary-alpha-800));
   }
 
   .artistPic {

@@ -2,6 +2,7 @@ import leaderboard from './leaderboard'
 import { apis } from '../api-source'
 import songList from './songList'
 import musicSearch from './musicSearch'
+import singer from './singer'
 import pic from './pic'
 import lyric from './lyric'
 import hotSearch from './hotSearch'
@@ -13,6 +14,7 @@ const kg = {
   leaderboard,
   songList,
   musicSearch,
+  singer,
   hotSearch,
   comment,
   getMusicUrl(songInfo, type) {

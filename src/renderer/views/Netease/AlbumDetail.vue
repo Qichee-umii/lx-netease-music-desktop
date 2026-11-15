@@ -2,7 +2,7 @@
   <div :class="$style.container">
     <section :class="$style.header">
       <button
-        v-if="album?.id"
+        v-if="isWy && album?.id"
         type="button"
         :class="[$style.subBtn, { [$style.liked]: isSubscribed }]"
         :aria-label="isSubscribed ? '取消收藏' : '收藏专辑'"
@@ -16,7 +16,7 @@
         <img v-if="cover" :class="$style.cover" :src="cover" decoding="async">
         <div :class="$style.meta">
           <h2>{{ album?.name || route.query.name || '网易云专辑' }}</h2>
-          <p>
+          <p v-if="artists.length">
             <button
               v-for="artist in artists"
               :key="artist.id"
@@ -26,7 +26,8 @@
               {{ artist.name }}
             </button>
           </p>
-          <span>{{ publishDate }} · {{ list.length }} 首</span>
+          <p v-else-if="albumAuthor">{{ albumAuthor }}</p>
+          <span>{{ publishDate ? `${publishDate} · ${list.length} 首` : `${list.length} 首` }}</span>
           <em v-if="albumDesc" class="scroll">{{ albumDesc }}</em>
         </div>
       </div>
@@ -34,7 +35,7 @@
     <div :class="$style.list">
       <material-online-list
         ref="onlineListRef"
-        :list-id="`wy_album_${albumId}`"
+        :list-id="`${source}_album_${albumId}`"
         force-play-list
         :page="1"
         :limit="Math.max(list.length, 1)"
@@ -65,13 +66,18 @@ const list = ref<LX.Music.MusicInfoOnline[]>([])
 const message = ref('加载中...')
 const onlineListRef = ref<any>(null)
 const albumId = computed(() => String(route.query.id ?? ''))
-const cover = computed(() => album.value?.picUrl ?? album.value?.blurPicUrl ?? '')
+const source = computed(() => (route.query.source ?? 'wy') as string)
+const isWy = computed(() => source.value == 'wy')
+const cover = computed(() => album.value?.picUrl ?? album.value?.blurPicUrl ?? album.value?.img ?? '')
 const artists = computed(() => album.value?.artists ?? [])
-const albumDesc = computed(() => album.value?.description || album.value?.briefDesc || '')
+const albumAuthor = computed(() => album.value?.author ?? '')
+const albumDesc = computed(() => album.value?.description || album.value?.briefDesc || album.value?.desc || '')
 const isSubscribed = computed(() => wySubscribedAlbums.some(item => String(item.id) == albumId.value))
 const publishDate = computed(() => {
   const time = album.value?.publishTime
-  return time ? new Date(time).toLocaleDateString() : '未知日期'
+  if (!time) return ''
+  const d = new Date(time)
+  return isNaN(d.getTime()) ? String(time) : d.toLocaleDateString()
 })
 
 const restoreScroll = () => {
@@ -88,9 +94,23 @@ const load = async() => {
     return
   }
   try {
-    const res = await musicSdk.wy.album.getAlbum(albumId.value)
-    album.value = res.info
-    list.value = deduplicationList(res.list.map((m: any) => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
+    if (isWy.value) {
+      const res = await musicSdk.wy.album.getAlbum(albumId.value)
+      album.value = res.info
+      list.value = deduplicationList(res.list.map((m: any) => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
+    } else {
+      // 统一走 songList 的专辑前缀分支：kw=digest-13__id / kg=album_id
+      const rid = source.value == 'kw' ? `digest-13__${albumId.value}` : `album_${albumId.value}`
+      const res = await (musicSdk as any)[source.value].songList.getListDetail(rid, 1)
+      album.value = {
+        name: res.info?.name ?? route.query.name ?? '',
+        img: res.info?.img ?? '',
+        desc: res.info?.desc ?? '',
+        author: res.info?.author ?? '',
+        publishTime: res.info?.publishDate ?? '',
+      }
+      list.value = deduplicationList(res.list.map((m: any) => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
+    }
     restoreScroll()
     message.value = list.value.length ? '' : '暂无歌曲'
   } catch (err: any) {
@@ -110,7 +130,7 @@ const openArtist = (artist: { id: string | number, name: string }) => {
 }
 
 const handlePlayList = async(index: number) => {
-  await setTempList(`wy_album_${albumId.value}`, [...list.value])
+  await setTempList(`${source.value}_album_${albumId.value}`, [...list.value])
   playList(LIST_IDS.TEMP, index)
 }
 
@@ -132,7 +152,7 @@ watch(() => [route.query.scrollIndex, route.query.locationId], () => {
   restoreScroll()
 })
 
-watch(() => route.query.id, () => {
+watch(() => [route.query.id, route.query.source], () => {
   void load()
 })
 </script>

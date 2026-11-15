@@ -3,7 +3,7 @@
 import { httpFetch } from '../../request'
 import { formatPlayTime, decodeName } from '../../index'
 // import { debug } from '../../utils/env'
-import { formatSinger } from './util'
+import { formatSinger, objStr2JSON } from './util'
 
 export default {
   regExps: {
@@ -77,9 +77,17 @@ export default {
 
       let interval = parseInt(info.DURATION)
 
+      // 多歌手：allartistid 为 & 连接的完整歌手 id 列表（如 "105315&604328"），与 ARTIST 的 & 分段一一对应
+      const artistIds = String(info.allartistid ?? info.ARTISTID ?? '').split('&').filter(Boolean)
+      const artistNames = String(info.ARTIST ?? '').split('&').map(decodeName)
+      const artists = artistIds.length
+        ? artistIds.map((id, i) => ({ id: String(id), name: artistNames[i] || artistNames[0] || '' }))
+        : null
+
       result.push({
         name: decodeName(info.SONGNAME),
         singer: formatSinger(decodeName(info.ARTIST)),
+        artists,
         source: 'kw',
         // img = (info.album.name === '' || info.album.name === '空')
         //   ? `http://player.kuwo.cn/webmusic/sj/dtflagdate?flag=6&rid=MUSIC_160911.jpg`
@@ -89,7 +97,9 @@ export default {
         interval: Number.isNaN(interval) ? 0 : formatPlayTime(interval),
         albumName: info.ALBUM ? decodeName(info.ALBUM) : '',
         lrc: null,
-        img: null,
+        img: info.web_albumpic_short
+          ? `http://img1.kuwo.cn/star/albumcover/${info.web_albumpic_short.replace(/^\d+\//, '500/')}`
+          : null,
         otherSource: null,
         types,
         _types,
@@ -121,6 +131,64 @@ export default {
         limit,
         source: 'kw',
       })
+    })
+  },
+  searchSinger(str, page = 1, limit = 30, retryNum = 0) {
+    if (retryNum > 2) return Promise.reject(new Error('try max num'))
+    const requestObj = httpFetch(`http://search.kuwo.cn/r.s?client=kt&all=${encodeURIComponent(str)}&pn=${page - 1}&rn=${limit}&uid=794762570&ver=kwplayer_ar_9.2.2.1&vipver=1&show_copyright_off=1&newver=1&ft=artist&cluster=0&strategy=2012&encoding=utf8&rformat=json&vermerge=1&mobi=1&issubtitle=1`)
+    return requestObj.promise.then(({ body: result }) => {
+      if (!result || (result.TOTAL !== '0' && result.SHOW === '0')) return this.searchSinger(str, page, limit, ++retryNum)
+      const basePicPath = result.BASEPICPATH || 'http://img1.kuwo.cn/star/starheads/'
+      const list = (result.abslist || []).map(item => ({
+        id: item.ARTISTID,
+        name: decodeName(item.ARTIST),
+        picUrl: item.PICPATH ? basePicPath + item.PICPATH.replace(/^\d+\//, '500/') : '',
+        alias: item.AARTIST ? [decodeName(item.AARTIST)] : [],
+        musicSize: parseInt(item.SONGNUM) || null,
+        albumSize: parseInt(item.ALBUMNUM) || null,
+        source: 'kw',
+      }))
+      const total = parseInt(result.TOTAL) || list.length
+      return {
+        list,
+        allPage: Math.ceil(total / limit),
+        limit,
+        total,
+        source: 'kw',
+      }
+    })
+  },
+  searchAlbum(str, page = 1, limit = 30, retryNum = 0) {
+    if (retryNum > 2) return Promise.reject(new Error('try max num'))
+    const requestObj = httpFetch(`http://search.kuwo.cn/r.s?client=kt&all=${encodeURIComponent(str)}&pn=${page - 1}&rn=${limit}&uid=794762570&ver=kwplayer_ar_9.2.2.1&vipver=1&show_copyright_off=1&newver=1&ft=album&cluster=0&strategy=2012&encoding=utf8&rformat=json&vermerge=1&issubtitle=1`)
+    return requestObj.promise.then(({ body: result }) => {
+      let data = null
+      try {
+        data = typeof result === 'string' ? objStr2JSON(result) : result
+      } catch (err) {
+        data = null
+      }
+      if (!data || !Array.isArray(data.albumlist)) return this.searchAlbum(str, page, limit, ++retryNum)
+      const list = data.albumlist.map(item => ({
+        id: item.albumid,
+        name: decodeName(item.name),
+        picUrl: item.pic
+          ? `http://img1.kuwo.cn/star/albumcover/${item.pic.replace(/^\d+\//, '500/')}`
+          : (item.img || item.hts_img || ''),
+        artistName: decodeName(item.artist),
+        artistId: item.artistid,
+        size: parseInt(item.musiccnt) || null,
+        publishTime: item.pub || '',
+        source: 'kw',
+      }))
+      const total = parseInt(data.total) || list.length
+      return {
+        list,
+        allPage: Math.ceil(total / limit),
+        limit,
+        total,
+        source: 'kw',
+      }
     })
   },
 }

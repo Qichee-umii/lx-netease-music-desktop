@@ -373,6 +373,7 @@ export default {
     // https://h5app.kuwo.cn/m/bodian/collection.html?uid=000&playlistId=000&source=5&ownerId=000
     // https://h5app.kuwo.cn/m/bodian/collection.html?uid=000&playlistId=000&source=4&ownerId=
     if (/\/bodian\//.test(id)) return this.getListDetailMusicListByBD(id, page)
+    if (/^artist_\d+$/.test(id)) return this.getArtistDetail(id.replace('artist_', ''), page, retryNum)
     if ((/[?&:/]/.test(id))) id = id.replace(this.regExps.listDetailLink, '$1')
     else if (/^digest-/.test(id)) {
       let [digest, _id] = id.split('__')
@@ -387,6 +388,34 @@ export default {
       }
     }
     return this.getListDetailDigest8(id, page, retryNum)
+  },
+  // 歌手详情（歌单详情页形态）：歌手全部歌曲分页 + 歌手信息
+  async getArtistDetail(id, page = 1, retryNum = 0) {
+    if (++retryNum > 3) return Promise.reject(new Error('try max num'))
+    const limit = this.limit_song > 100 ? 100 : this.limit_song
+    const [{ body: listBody }, { body: infoBody }] = await Promise.all([
+      httpFetch(`http://search.kuwo.cn/r.s?client=kt&stype=artist2music&artistid=${id}&pn=${page - 1}&rn=${limit}&encoding=utf8&rformat=json&vermerge=1&mobi=1`).promise,
+      httpFetch(`http://search.kuwo.cn/r.s?client=kt&stype=artistinfo&artistid=${id}&encoding=utf8&rformat=json&vermerge=1&mobi=1`).promise,
+    ])
+    const listData = typeof listBody === 'string' ? objStr2JSON(listBody) : listBody
+    const infoData = typeof infoBody === 'string' ? objStr2JSON(infoBody) : infoBody
+    if (!listData?.musiclist) return this.getArtistDetail(id, page, retryNum)
+    const rawList = listData.musiclist.map(item => ({ ...item, id: String(item.musicrid ?? item.id ?? '').replace(/^MUSIC_/, '') }))
+    return {
+      list: this.filterListDetail(rawList),
+      page,
+      limit,
+      total: parseInt(listData.total) || rawList.length,
+      source: 'kw',
+      info: {
+        name: infoData?.name || '',
+        img: infoData?.hts_pic
+          ? infoData.hts_pic.replace(/\/\d+\//, '/500/')
+          : (infoData?.pic ? `http://img1.kuwo.cn/star/starheads/${infoData.pic.replace(/^\d+\//, '500/')}` : ''),
+        desc: infoData?.desc ? decodeName(infoData.desc) : '',
+        author: infoData?.name || '',
+      },
+    }
   },
   filterListDetail(rawData) {
     // console.log(rawData)
@@ -435,7 +464,9 @@ export default {
         songmid: item.id,
         source: 'kw',
         interval: formatPlayTime(parseInt(item.duration)),
-        img: null,
+        img: item.web_albumpic_short
+          ? `http://img1.kuwo.cn/star/albumcover/${item.web_albumpic_short.replace(/^\d+\//, '500/')}`
+          : null,
         lrc: null,
         otherSource: null,
         types,

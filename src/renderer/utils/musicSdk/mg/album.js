@@ -26,6 +26,7 @@ export default {
         img: listInfo.image,
         desc: listInfo.desc,
         author: listInfo.author,
+        publishDate: listInfo.publishDate,
         play_count: listInfo.play_count,
       },
     }
@@ -44,6 +45,7 @@ export default {
       image: info.imgItems.length ? info.imgItems[0].img : null,
       desc: info.summary,
       author: info.singer,
+      publishDate: info.publishDate ?? '',
       play_count: formatPlayCount(info.opNumItem.playNum),
       total: info.totalCount,
     }

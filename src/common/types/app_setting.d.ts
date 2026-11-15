@@ -30,6 +30,11 @@ declare global {
       'common.fontSize': number
 
       /**
+       * 在线列表歌曲封面大小（em，0 表示隐藏）
+       */
+      'common.onlineListCoverSize': number
+
+      /**
        * 是否以全屏启动
        */
       'common.startInFullscreen': boolean

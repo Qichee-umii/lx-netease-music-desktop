@@ -15,6 +15,22 @@ const router = createRouter({
       },
     },
     {
+      path: '/artist',
+      name: 'ArtistDetail',
+      component: require('./views/Netease/ArtistDetail.vue').default,
+      meta: {
+        name: 'ArtistDetail',
+      },
+    },
+    {
+      path: '/album',
+      name: 'AlbumDetail',
+      component: require('./views/Netease/AlbumDetail.vue').default,
+      meta: {
+        name: 'AlbumDetail',
+      },
+    },
+    {
       path: '/songList/list',
       name: 'SongList',
       component: require('./views/songList/List/index.vue').default,

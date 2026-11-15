@@ -33,7 +33,7 @@
               >
                 <div class="list-item-cell no-select num" style="flex: 0 0 5%;" @click.stop>{{ index + 1 }}</div>
                 <div class="list-item-cell auto name">
-                  <div v-if="item.meta.picUrl" :class="$style.cover"><img :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
+                  <div v-if="item.meta.picUrl && coverSize > 0" :class="$style.cover" :style="coverStyle"><img :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
                   <span class="select name" :class="$style.titleText" :aria-label="item.alias ? `${item.name} (${item.alias})` : item.name">
                     {{ item.name }}<span v-if="item.alias" :class="$style.alias">({{ item.alias }})</span>
                   </span>
@@ -46,12 +46,13 @@
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 20%;">
                   <template v-if="getWyArtists(item).length">
-                    <template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist)">{{ artist.name }}</button></template>
+                    <button v-if="getWyArtists(item).length > 2" type="button" :class="$style.linkText" @click.stop="showArtistMenu($event, item)">+{{ getWyArtists(item).length }} 位歌手</button>
+                    <template v-else><template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist, item.source)">{{ artist.name }}</button></template></template>
                   </template>
                   <span v-else class="select" :aria-label="item.singer">{{ item.singer }}</span>
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 20%;">
-                  <button v-if="item.source === 'wy' && item.meta.albumId" type="button" :class="$style.linkText" @click.stop="openWyAlbum(item)">{{ item.meta.albumName }}</button>
+                  <button v-if="isAlbumLinkEnabled(item)" type="button" :class="$style.linkText" @click.stop="openWyAlbum(item)">{{ item.meta.albumName }}</button>
                   <span v-else class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span>
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 8%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
@@ -82,7 +83,7 @@
               >
                 <div class="list-item-cell no-select num" style="flex: 0 0 5%;" @click.stop>{{ index + 1 }}</div>
                 <div class="list-item-cell auto name">
-                  <div v-if="item.meta.picUrl" :class="$style.cover"><img :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
+                  <div v-if="item.meta.picUrl && coverSize > 0" :class="$style.cover" :style="coverStyle"><img :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
                   <span class="select name" :class="$style.titleText" :aria-label="item.alias ? `${item.name} (${item.alias})` : item.name">
                     {{ item.name }}<span v-if="item.alias" :class="$style.alias">({{ item.alias }})</span>
                   </span>
@@ -95,12 +96,13 @@
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 24%;">
                   <template v-if="getWyArtists(item).length">
-                    <template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist)">{{ artist.name }}</button></template>
+                    <button v-if="getWyArtists(item).length > 2" type="button" :class="$style.linkText" @click.stop="showArtistMenu($event, item)">+{{ getWyArtists(item).length }} 位歌手</button>
+                    <template v-else><template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist, item.source)">{{ artist.name }}</button></template></template>
                   </template>
                   <span v-else class="select" :aria-label="item.singer">{{ item.singer }}</span>
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 27%;">
-                  <button v-if="item.source === 'wy' && item.meta.albumId" type="button" :class="$style.linkText" @click.stop="openWyAlbum(item)">{{ item.meta.albumName }}</button>
+                  <button v-if="isAlbumLinkEnabled(item)" type="button" :class="$style.linkText" @click.stop="openWyAlbum(item)">{{ item.meta.albumName }}</button>
                   <span v-else class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span>
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
@@ -129,15 +131,17 @@
     <common-download-modal v-model:show="isShowDownload" :music-info="selectedDownloadMusicInfo" teleport="#view" />
     <common-download-multiple-modal v-model:show="isShowDownloadMultiple" :list="selectedList" teleport="#view" @confirm="removeAllSelect" />
     <base-menu v-model="isShowItemMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
+    <base-menu v-model="artistMenu.show" :menus="artistMenus" :xy="artistMenu.xy" item-name="name" @menu-click="handleArtistMenuClick" />
   </div>
 </template>
 
 <script>
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
-import { computed, ref } from '@common/utils/vueTools'
+import { computed, reactive, ref } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
+import { appSetting } from '@renderer/store/setting'
 import useList from './useList'
 import useMenu from './useMenu'
 import usePlay from './usePlay'
@@ -198,6 +202,8 @@ export default {
     const rightClickSelectedIndex = ref(-1)
     const dom_listContent = ref(null)
     const listRef = ref(null)
+    const coverSize = computed(() => appSetting['common.onlineListCoverSize'] ?? 4.35)
+    const coverStyle = computed(() => ({ width: `${coverSize.value}em`, height: `${coverSize.value}em` }))
     const playerInfo = computed(() => ({
       isPlayList: !!props.listId && (
         playMusicInfo.listId == props.listId ||
@@ -272,28 +278,64 @@ export default {
       })
     }
     const getWyArtists = musicInfo => {
-      if (musicInfo.source !== 'wy') return []
       return musicInfo.meta.artists || []
     }
-    const openWyArtist = artist => {
-      if (!artist) return
-      void router.push({
-        path: '/netease/artist',
-        query: {
-          id: String(artist.id),
-          name: artist.name,
-        },
-      })
+    // 多歌手溢出：cell 宽度有限，>2 用 "+N 位歌手" 按钮弹出菜单列出全部
+    const artistMenu = reactive({ show: false, artist: null, source: 'wy', xy: { x: 0, y: 0 } })
+    const showArtistMenu = (event, musicInfo) => {
+      const artists = getWyArtists(musicInfo)
+      artistMenu.artist = artists
+      artistMenu.source = musicInfo.source
+      artistMenu.xy = { x: event.pageX, y: event.pageY }
+      artistMenu.show = true
+    }
+    const handleArtistMenuClick = menuItem => {
+      artistMenu.show = false
+      openWyArtist(menuItem.artist, artistMenu.source)
+    }
+    const artistMenus = computed(() => (artistMenu.artist ?? []).map(a => ({ name: a.name, artist: a })))
+    const openWyArtist = (artist, source = 'wy') => {
+      if (!artist?.id) return
+      void router.push(source === 'wy'
+        ? {
+            path: '/netease/artist',
+            query: {
+              id: String(artist.id),
+              name: artist.name,
+            },
+          }
+        : {
+            path: '/artist',
+            query: {
+              source,
+              id: String(artist.id),
+              name: artist.name,
+            },
+          })
+    }
+    const isAlbumLinkEnabled = musicInfo => {
+      return !!musicInfo.meta.albumId && !['local', 'xm'].includes(musicInfo.source)
     }
     const openWyAlbum = musicInfo => {
-      if (musicInfo.source !== 'wy' || !musicInfo.meta.albumId) return
-      void router.push({
-        path: '/netease/album',
-        query: {
-          id: String(musicInfo.meta.albumId),
-          name: musicInfo.meta.albumName,
-        },
-      })
+      if (!musicInfo.meta.albumId) return
+      if (musicInfo.source === 'wy') {
+        void router.push({
+          path: '/netease/album',
+          query: {
+            id: String(musicInfo.meta.albumId),
+            name: musicInfo.meta.albumName,
+          },
+        })
+      } else {
+        void router.push({
+          path: '/album',
+          query: {
+            source: musicInfo.source,
+            id: String(musicInfo.meta.albumId),
+            name: musicInfo.meta.albumName,
+          },
+        })
+      }
     }
 
     const handleListItemClick = (event, index) => {
@@ -380,10 +422,17 @@ export default {
       scrollToIndex,
       actionButtonsVisible,
       playerInfo,
+      coverSize,
+      coverStyle,
       wyLikedSongIds,
       handleWyLikeClick,
       getWyArtists,
       openWyArtist,
+      showArtistMenu,
+      artistMenus,
+      artistMenu,
+      handleArtistMenuClick,
+      isAlbumLinkEnabled,
       openWyAlbum,
     }
   },
@@ -445,8 +494,6 @@ export default {
 
 .cover {
   flex: none;
-  width: 4.35em;
-  height: 4.35em;
   margin-right: .58em;
   border-radius: 5px;
   overflow: hidden;

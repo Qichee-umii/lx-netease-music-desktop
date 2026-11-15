@@ -2,11 +2,13 @@
   <div :class="$style.container">
     <div :class="$style.header">
       <base-tab v-model="source" :list="sources" @change="handleSourceChange" />
-      <base-tab v-model="searchType" :list="searchTypes" @change="handleTypeChange" />
+      <div :class="$style.headerRight">
+        <base-tab v-model="searchType" :list="searchTypes" @change="handleTypeChange" />
+      </div>
     </div>
     <div :class="$style.main">
       <song-list-list v-if="searchType == 'songlist'" v-show="searchText" :page="page" :source-id="source" />
-      <netease-result-list v-else-if="isNeteaseOnlyType(searchType)" v-show="searchText" :page="page" :type="searchType" />
+      <netease-result-list v-else-if="searchType == 'singer' || searchType == 'album'" v-show="searchText" :page="page" :type="searchType" :source-id="source" />
       <music-list v-else v-show="searchText" :page="page" :source-id="source" />
       <blank-view :visible="!searchText" :source="source" />
     </div>
@@ -25,12 +27,15 @@ import NeteaseResultList from './NeteaseResultList/index.vue'
 import BlankView from './components/BlankView.vue'
 import { computed, ref } from '@common/utils/vueTools'
 import { sourceNames } from '@renderer/store'
+import musicSdk from '@renderer/utils/musicSdk'
 
 const source = ref('kw')
 const searchType = ref('music')
 const page = ref(1)
-const NETEASE_ONLY_TYPES = new Set(['singer', 'album'])
-const isNeteaseOnlyType = type => NETEASE_ONLY_TYPES.has(type)
+const supportsArtistSearch = id => {
+  const sdk = musicSdk[id]
+  return !!(sdk?.musicSearch?.searchSinger && sdk?.musicSearch?.searchAlbum)
+}
 
 const verifyQueryParams = async(to, from, next) => {
   let _source = to.query.source
@@ -41,18 +46,10 @@ const verifyQueryParams = async(to, from, next) => {
     const setting = await getSearchSetting()
     _source ??= setting.source
     _type ??= setting.type
-    if (isNeteaseOnlyType(_type) && _source != 'wy') _source = 'wy'
 
     next({
       path: to.path,
       query: { ...to.query, source: _source, type: _type, page: _page },
-    })
-    return
-  }
-  if (isNeteaseOnlyType(_type) && _source != 'wy') {
-    next({
-      path: to.path,
-      query: { ...to.query, source: 'wy', type: _type, page: _page },
     })
     return
   }
@@ -89,7 +86,9 @@ export default {
       }
     })
     const sources = computed(() => {
-      if (isNeteaseOnlyType(searchType.value)) return allSources.filter(item => item.id == 'wy')
+      if (searchType.value == 'singer' || searchType.value == 'album') {
+        return allSources.filter(item => supportsArtistSearch(item.id))
+      }
       return allSources
     })
     const handleSourceChange = (id) => {
@@ -112,17 +111,20 @@ export default {
       ]
     })
     const handleTypeChange = (type) => {
+      let nextSource = source.value
+      if ((type == 'singer' || type == 'album') && !supportsArtistSearch(nextSource)) {
+        nextSource = allSources.find(item => supportsArtistSearch(item.id))?.id ?? 'wy'
+      }
       void router.replace({
         path: route.path,
         query: {
           ...route.query,
           type,
-          source: isNeteaseOnlyType(type) ? 'wy' : source.value,
+          source: nextSource,
           page: 1,
         },
       })
     }
-
 
     return {
       sources,
@@ -130,7 +132,6 @@ export default {
       handleSourceChange,
       searchTypes,
       searchType,
-      isNeteaseOnlyType,
       handleTypeChange,
       page,
       searchText,
@@ -153,6 +154,14 @@ export default {
   display: flex;
   flex-flow: row nowrap;
   justify-content: space-between;
+}
+
+.headerRight {
+  flex: none;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .main {

@@ -76,10 +76,40 @@ export default {
         info: {
           name: item.albumname,
           author: item.singername,
-          img: item.replaceAll('{size}', '480'),
+          img: item.imgurl ? item.imgurl.replace('{size}', '480') : '',
           desc: item.intro,
         },
       }
     })
+  },
+  /**
+   * 歌手详情（歌单详情页形态）：歌曲分页列表 + 头部信息
+   * @param {*} id 歌手 id
+   * @param {*} page
+   * @param {*} limit
+   */
+  async getArtistDetail(id, page = 1, limit = 100) {
+    if (id == 0) throw new Error('歌手不存在')
+    const [info, songBody] = await Promise.all([
+      this.getInfo(id).catch(() => null),
+      createHttpFetch(`http://mobiles.kugou.com/api/v5/singer/song?singerid=${id}&page=${page}&pagesize=${limit}`).catch(() => null),
+    ])
+    if (!songBody?.info) throw new Error('get singer song list faild.')
+
+    const list = await getMusicInfosByList(songBody.info)
+    const name = info?.info?.name || ''
+    return {
+      source: 'kg',
+      list,
+      limit,
+      page,
+      total: songBody.total,
+      info: {
+        name,
+        img: info?.info?.avatar || '',
+        desc: info?.info?.desc || '',
+        author: name,
+      },
+    }
   },
 }

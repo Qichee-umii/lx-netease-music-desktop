@@ -1,6 +1,8 @@
 import { httpFetch } from '../../request'
 import { decodeName, formatPlayTime, sizeFormate, dateFormat, formatPlayCount } from '../../index'
 import { formatSingerName } from '../utils'
+import singer from './singer'
+import album from './album'
 
 export default {
   _requestObj_tags: null,
@@ -193,7 +195,10 @@ export default {
     return id
   },
   // 获取歌曲列表内的音乐
-  async getListDetail(id, tryNum = 0) {
+  // sort 仅在 artist_ 分支生效（'hot' | 'time'）
+  async getListDetail(id, tryNum = 0, sort = 'hot') {
+    if (id.startsWith('album_')) return album.getAlbumDetail(id.replace('album_', ''), Number(tryNum) || 1)
+    if (id.startsWith('artist_')) return singer.getArtistDetail(id.replace('artist_', ''), Number(tryNum) || 1, 100, sort)
     if (tryNum > 2) return Promise.reject(new Error('try max num'))
 
     id = await this.getListId(id)

@@ -109,10 +109,10 @@ export default {
   //   return list
   // },
 
-  musicSearch(str, page, limit) {
+  musicSearch(str, page, limit, searchSwitch = { song: 1, album: 0, singer: 0, tagSong: 1, mvSong: 0, bestShow: 1, songlist: 0, lyricSong: 0 }) {
     const time = Date.now().toString()
     const signData = createSignature(time, str)
-    const searchRequest = httpFetch(`https://jadeite.migu.cn/music_search/v3/search/searchAll?isCorrect=0&isCopyright=1&searchSwitch=%7B%22song%22%3A1%2C%22album%22%3A0%2C%22singer%22%3A0%2C%22tagSong%22%3A1%2C%22mvSong%22%3A0%2C%22bestShow%22%3A1%2C%22songlist%22%3A0%2C%22lyricSong%22%3A0%7D&pageSize=${limit}&text=${encodeURIComponent(str)}&pageNo=${page}&sort=0&sid=USS`, {
+    const searchRequest = httpFetch(`https://jadeite.migu.cn/music_search/v3/search/searchAll?isCorrect=0&isCopyright=1&searchSwitch=${encodeURIComponent(JSON.stringify(searchSwitch))}&pageSize=${limit}&text=${encodeURIComponent(str)}&pageNo=${page}&sort=0&sid=USS`, {
       headers: {
         uiVersion: 'A_music_3.6.1',
         deviceId: signData.deviceId,
@@ -175,6 +175,7 @@ export default {
 
         list.push({
           singer: formatSingerName(data.singerList),
+          artists: Array.isArray(data.singerList) ? data.singerList.map(s => ({ id: String(s.id ?? ''), name: s.name ?? '' })).filter(a => a.id) : null,
           name: data.name,
           albumName: data.album,
           albumId: data.albumId,
@@ -211,6 +212,69 @@ export default {
       this.page = page
       this.allPage = Math.ceil(this.total / limit)
 
+      return {
+        list,
+        allPage: this.allPage,
+        limit,
+        total: this.total,
+        source: 'mg',
+      }
+    })
+  },
+  searchSinger(str, page = 1, limit = 30, retryNum = 0) {
+    if (++retryNum > 3) return Promise.reject(new Error('try max num'))
+    return this.musicSearch(str, page, limit, { song: 0, album: 0, singer: 1, tagSong: 0, mvSong: 0, bestShow: 0, songlist: 0, lyricSong: 0 }).then(result => {
+      if (!result || result.code !== '000000') return Promise.reject(new Error(result ? result.info : '搜索失败'))
+      const singerResultData = result.singerResultData || { result: [], totalCount: 0 }
+      const rawList = singerResultData.result || []
+      const list = rawList.map(item => {
+        const pics = item.singerPicUrl || []
+        const pic = pics.length ? pics[pics.length - 1].img : ''
+        return {
+          id: item.id,
+          name: item.name,
+          picUrl: pic || '',
+          alias: [],
+          musicSize: item.songCount ?? null,
+          albumSize: item.albumCount ?? null,
+          source: 'mg',
+        }
+      })
+      this.total = parseInt(singerResultData.totalCount) || list.length
+      this.page = page
+      this.allPage = Math.ceil(this.total / limit)
+      return {
+        list,
+        allPage: this.allPage,
+        limit,
+        total: this.total,
+        source: 'mg',
+      }
+    })
+  },
+  searchAlbum(str, page = 1, limit = 30, retryNum = 0) {
+    if (++retryNum > 3) return Promise.reject(new Error('try max num'))
+    return this.musicSearch(str, page, limit, { song: 0, album: 1, singer: 0, tagSong: 0, mvSong: 0, bestShow: 0, songlist: 0, lyricSong: 0 }).then(result => {
+      if (!result || result.code !== '000000') return Promise.reject(new Error(result ? result.info : '搜索失败'))
+      const albumResultData = result.albumResultData || { result: [], totalCount: 0 }
+      const rawList = albumResultData.result || []
+      const list = rawList.map(item => {
+        const pics = item.imgItems || []
+        const pic = pics.length ? pics[0].img : ''
+        return {
+          id: item.id,
+          name: item.name,
+          picUrl: pic || '',
+          artistName: item.singer,
+          artistId: null,
+          size: null,
+          publishTime: item.publishDate || '',
+          source: 'mg',
+        }
+      })
+      this.total = parseInt(albumResultData.totalCount) || list.length
+      this.page = page
+      this.allPage = Math.ceil(this.total / limit)
       return {
         list,
         allPage: this.allPage,

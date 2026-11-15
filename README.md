@@ -30,7 +30,11 @@
 [9]: https://img.shields.io/github/license/souvenp/lx-netease-music-desktop
 [10]: https://github.com/souvenp/lx-netease-music-desktop/blob/master/LICENSE -->
 
-<p align="center">一个基于 Electron & Vue 开发的音乐软件</p>
+> **注**: 这是在三方修改版 `lx-netease-music-desktop` 基础上继续改造，仅供个人自用
+>
+> 官方地址: [lx-netease-music-desktop](https://github.com/souvenp/lx-netease-music-desktop)
+
+> **注意**: 涉及同步、备份未充分测试，请自行备份重要文件
 
 ## 说明
 
@@ -49,7 +53,7 @@
 
 *LX-N 项目基于 LX Music 桌面版二次开发，增加网易云相关能力。*
 
-软件变化请查看[更新日志](https://github.com/souvenp/lx-netease-music-desktop/blob/master/CHANGELOG.md)。
+软件变化请查看[更新日志](./CHANGELOG.md)（LX-N 本地改造记录在文件顶部）。
 
 软件下载请查看 [GitHub Releases](https://github.com/souvenp/lx-netease-music-desktop/releases)。
 

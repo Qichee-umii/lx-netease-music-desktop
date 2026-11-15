@@ -41,6 +41,7 @@ export const filterMusicInfoItem = item => {
   return {
     source: 'tx',
     singer: formatSingerName(item.singer, 'name'),
+    artists: Array.isArray(item.singer) ? item.singer.map(s => ({ id: s.mid, name: s.name })).filter(a => a.id) : null,
     name: item.title,
     albumName,
     albumId,
@@ -241,9 +242,49 @@ export default {
     })
   },
   filterSongList(raw) {
-    raw.map(item => {
+    return raw.map(item => {
       return filterMusicInfoItem(item.songInfo)
     })
+  },
+  /**
+   * 歌手详情（歌单详情页形态）：歌曲分页列表 + 头部信息
+   * 歌手名取自返回歌曲列表首项的歌手名，头像用 mid 模板拼接
+   * @param {*} id 歌手 mid
+   * @param {*} page
+   * @param {*} limit
+   * @param {*} sort 'hot' | 'time'（GetSingerSongList: order 1=热门，2=最新）
+   */
+  async getArtistDetail(id, page = 1, limit = 100, sort = 'hot') {
+    const body = await createMusicuFetch({
+      req: {
+        module: 'musichall.song_list_server',
+        method: 'GetSingerSongList',
+        param: {
+          singerMid: id,
+          order: sort === 'time' ? 2 : 1,
+          begin: (page - 1) * limit,
+          num: limit,
+        },
+      },
+    })
+    if (body.req.code != 0) throw new Error('get singer song list faild.')
+
+    const songList = body.req.data.songList || []
+    const list = this.filterSongList(songList)
+    const singerName = songList.length ? (songList[0].songInfo?.singer?.[0]?.name ?? '') : ''
+    return {
+      source: 'tx',
+      list,
+      limit,
+      page,
+      total: body.req.data.totalNum,
+      info: {
+        name: singerName,
+        img: `https://y.gtimg.cn/music/photo_new/T001R500x500M000${id}.jpg`,
+        desc: '',
+        author: singerName,
+      },
+    }
   },
 }
 

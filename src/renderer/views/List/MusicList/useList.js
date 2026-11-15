@@ -50,7 +50,8 @@ export default ({ listRef, list }) => {
 
   let lastSelectIndex = -1
   const listItemHeight = computed(() => {
-    return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * 2.3)
+    const coverSize = appSetting['common.onlineListCoverSize'] ?? 4.35
+    return Math.ceil((isFullscreen.value ? getFontSizeWithScreen() : appSetting['common.fontSize']) * Math.max(2.3, coverSize + 0.3))
   })
 
   const removeAllSelect = () => {

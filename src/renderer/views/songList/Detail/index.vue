@@ -147,8 +147,19 @@ export default {
 
     const handleBack = () => {
       setVisibleListDetail(false)
-      if (window.lx.songListInfo.fromName) void router.replace({ name: window.lx.songListInfo.fromName })
-      else router.back()
+      let replaced = false
+      if (window.lx.songListInfo.fromName) {
+        try {
+          // fromName 必须是合法路由名（历史上可能存了显示名），解析失败则回退 browser back
+          if (router.resolve({ name: window.lx.songListInfo.fromName }).matched.length) {
+            void router.replace({ name: window.lx.songListInfo.fromName })
+            replaced = true
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!replaced) router.back()
     }
     const handleWySubPlaylist = () => {
       void toggleWySubPlaylist({

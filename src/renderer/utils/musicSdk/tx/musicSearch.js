@@ -8,7 +8,7 @@ export default {
   page: 0,
   allPage: 1,
   successCode: 0,
-  musicSearch(str, page, limit, retryNum = 0) {
+  musicSearch(str, page, limit, retryNum = 0, searchType = 0) {
     if (retryNum > 5) return Promise.reject(new Error('搜索失败'))
     const searchRequest = signRequest({
       comm: {
@@ -44,7 +44,7 @@ export default {
         module: 'music.search.SearchCgiService',
         method: 'DoSearchForQQMusicMobile',
         param: {
-          search_type: 0,
+          search_type: searchType,
           searchid: Math.random().toString().slice(2),
           query: str,
           page_num: page,
@@ -125,6 +125,7 @@ export default {
       }
       list.push({
         singer: formatSingerName(item.singer, 'name'),
+        artists: Array.isArray(item.singer) ? item.singer.map(s => ({ id: s.mid, name: s.name })).filter(a => a.id) : null,
         // name: item.name + (item.title_extra ?? ''),
         name: item.title,
         albumName,
@@ -156,6 +157,57 @@ export default {
       this.page = page
       this.allPage = Math.ceil(this.total / limit)
 
+      return Promise.resolve({
+        list,
+        allPage: this.allPage,
+        limit,
+        total: this.total,
+        source: 'tx',
+      })
+    })
+  },
+  searchSinger(str, page = 1, limit = 30) {
+    return this.musicSearch(str, page, limit, 0, 1).then(({ body, meta }) => {
+      let rawList = body?.singer
+      if (!rawList || !Array.isArray(rawList)) rawList = []
+      const list = rawList.map(item => ({
+        id: item.singerMID,
+        name: item.singerName,
+        picUrl: (item.singerPic || '').replace('R150x150', 'R500x500'),
+        alias: item.subtitle ? [item.subtitle] : [],
+        musicSize: item.songNum ?? null,
+        albumSize: item.albumNum ?? null,
+        source: 'tx',
+      }))
+      this.total = meta?.sum ?? list.length
+      this.page = page
+      this.allPage = Math.ceil(this.total / limit)
+      return Promise.resolve({
+        list,
+        allPage: this.allPage,
+        limit,
+        total: this.total,
+        source: 'tx',
+      })
+    })
+  },
+  searchAlbum(str, page = 1, limit = 30) {
+    return this.musicSearch(str, page, limit, 0, 2).then(({ body, meta }) => {
+      let rawList = body?.item_album
+      if (!rawList || !Array.isArray(rawList)) rawList = []
+      const list = rawList.map(item => ({
+        id: item.albummid,
+        name: item.name,
+        picUrl: (item.pic || '').replace('R180x180', 'R500x500'),
+        artistName: item.singer,
+        artistId: item.singer_id,
+        size: null,
+        publishTime: item.publish_date || '',
+        source: 'tx',
+      }))
+      this.total = meta?.sum ?? list.length
+      this.page = page
+      this.allPage = Math.ceil(this.total / limit)
       return Promise.resolve({
         list,
         allPage: this.allPage,

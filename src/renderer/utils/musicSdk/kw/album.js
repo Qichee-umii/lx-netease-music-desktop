@@ -96,6 +96,7 @@ export default {
           img: body.img || body.hts_img,
           desc: decodeName(body.info),
           author: decodeName(body.artist),
+          publishDate: body.pub ?? '',
           // play_count: this.formatPlayCount(body.playnum),
         },
       }

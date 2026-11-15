@@ -49,6 +49,10 @@ export default {
     }
     return {
       singer: decodeName(formatSingerName(rawData.Singers, 'name')),
+      artists: (() => {
+        const singers = (rawData.Singers || []).filter(s => s.id).map(s => ({ id: String(s.id), name: decodeName(s.name) }))
+        return singers.length ? singers : null
+      })(),
       name: decodeName(rawData.SongName),
       albumName: decodeName(rawData.AlbumName),
       albumId: rawData.AlbumID,
@@ -56,7 +60,7 @@ export default {
       source: 'kg',
       interval: formatPlayTime(rawData.Duration),
       _interval: rawData.Duration,
-      img: null,
+      img: rawData.Image ? rawData.Image.replace('{size}', '400') : null,
       lrc: null,
       otherSource: null,
       hash: rawData.FileHash,
@@ -103,6 +107,82 @@ export default {
         total: this.total,
         source: 'kg',
       })
+    })
+  },
+  /**
+   * kg 歌手搜索接口不返回歌手图片，此方法按需并发拉取歌手信息补全 picUrl
+   */
+  async fillSingerPics(list, concurrency = 5) {
+    const pending = list.filter(item => item.id != null && !item.picUrl)
+    let cursor = 0
+    const workers = Array.from({ length: Math.min(concurrency, pending.length) }, async() => {
+      while (cursor < pending.length) {
+        const index = cursor++
+        const item = pending[index]
+        try {
+          const { body } = await httpFetch(`http://mobiles.kugou.com/api/v5/singer/info?singerid=${item.id}`).promise
+          const data = body?.data
+          if (!data) continue
+          item.picUrl = data.imgurl ? data.imgurl.replace('{size}', '480') : ''
+          if (!item.musicSize) item.musicSize = data.songcount ?? null
+          if (!item.albumSize) item.albumSize = data.albumcount ?? null
+        } catch (_) {}
+      }
+    })
+    await Promise.all(workers)
+    return list
+  },
+  searchSinger(str, page = 1, limit = 30, retryNum = 0) {
+    if (++retryNum > 3) return Promise.reject(new Error('try max num'))
+    return httpFetch(`http://msearch.kugou.com/api/v3/search/singer?keyword=${encodeURIComponent(str)}&page=${page}&pagesize=${limit}`).promise.then(({ body }) => {
+      if (!body || body.status !== 1 || !Array.isArray(body.data)) return this.searchSinger(str, page, limit, retryNum)
+      const list = body.data.map(item => ({
+        id: item.singerid,
+        name: decodeName(item.singername),
+        picUrl: '',
+        alias: [],
+        musicSize: null,
+        albumSize: null,
+        source: 'kg',
+      }))
+      // kg 接口固定返回 10 条且忽略翻页参数
+      this.total = list.length
+      this.page = 1
+      this.allPage = 1
+      return {
+        list,
+        allPage: 1,
+        limit: list.length,
+        total: list.length,
+        source: 'kg',
+        fillPics: this.fillSingerPics,
+      }
+    })
+  },
+  searchAlbum(str, page = 1, limit = 30, retryNum = 0) {
+    if (++retryNum > 3) return Promise.reject(new Error('try max num'))
+    return httpFetch(`http://msearch.kugou.com/api/v3/search/album?keyword=${encodeURIComponent(str)}&page=${page}&pagesize=${limit}`).promise.then(({ body }) => {
+      if (!body || body.status !== 1 || !body.data?.info) return this.searchAlbum(str, page, limit, retryNum)
+      const list = body.data.info.map(item => ({
+        id: item.albumid,
+        name: decodeName(item.albumname),
+        picUrl: item.imgurl ? item.imgurl.replace('{size}', '400') : '',
+        artistName: decodeName(item.singername),
+        artistId: null,
+        size: item.songcount ?? null,
+        publishTime: (item.publishtime || '').split(' ')[0],
+        source: 'kg',
+      }))
+      this.total = body.data.total
+      this.page = page
+      this.allPage = Math.ceil(this.total / limit)
+      return {
+        list,
+        allPage: this.allPage,
+        limit,
+        total: this.total,
+        source: 'kg',
+      }
     })
   },
 }
