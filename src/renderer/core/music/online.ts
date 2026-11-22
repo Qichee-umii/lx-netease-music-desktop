@@ -9,6 +9,7 @@ import {
 import {
   buildLyricInfo,
   getPlayQuality,
+  getPlayQualityBySource,
   handleGetOnlineLyricInfo,
   handleGetOnlineMusicUrl,
   handleGetOnlinePicUrl,
@@ -68,7 +69,7 @@ export const getMusicUrl = async({ musicInfo, quality, isRefresh, allowToggleSou
 
   //   // return Promise.reject(new Error('该歌曲没有可播放的音频'))
   // }
-  const targetQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
+  const targetQuality = quality ?? getPlayQuality(getPlayQualityBySource(musicInfo), musicInfo)
   const hasWyCookie = musicInfo.source == 'wy' && !!appSetting['common.wy_cookie'].trim()
   const cachedUrl = await getStoreMusicUrl(musicInfo, targetQuality)
   if (cachedUrl && !isRefresh && !hasWyCookie) return cachedUrl

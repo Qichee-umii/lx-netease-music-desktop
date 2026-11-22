@@ -33,7 +33,7 @@
               >
                 <div class="list-item-cell no-select num" style="flex: 0 0 5%;" @click.stop>{{ index + 1 }}</div>
                 <div class="list-item-cell auto name">
-                  <div v-if="item.meta.picUrl && coverSize > 0" :class="$style.cover" :style="coverStyle"><img :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
+                  <div v-if="coverSize > 0" :class="$style.cover" :style="coverStyle"><img v-if="item.meta.picUrl" :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
                   <span class="select name" :class="$style.titleText" :aria-label="item.alias ? `${item.name} (${item.alias})` : item.name">
                     {{ item.name }}<span v-if="item.alias" :class="$style.alias">({{ item.alias }})</span>
                   </span>
@@ -46,8 +46,7 @@
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 20%;">
                   <template v-if="getWyArtists(item).length">
-                    <button v-if="getWyArtists(item).length > 2" type="button" :class="$style.linkText" @click.stop="showArtistMenu($event, item)">+{{ getWyArtists(item).length }} 位歌手</button>
-                    <template v-else><template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist, item.source)">{{ artist.name }}</button></template></template>
+                    <material-artist-cells :artists="getWyArtists(item)" @artist-click="openWyArtist($event, item.source)" />
                   </template>
                   <span v-else class="select" :aria-label="item.singer">{{ item.singer }}</span>
                 </div>
@@ -83,7 +82,7 @@
               >
                 <div class="list-item-cell no-select num" style="flex: 0 0 5%;" @click.stop>{{ index + 1 }}</div>
                 <div class="list-item-cell auto name">
-                  <div v-if="item.meta.picUrl && coverSize > 0" :class="$style.cover" :style="coverStyle"><img :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
+                  <div v-if="coverSize > 0" :class="$style.cover" :style="coverStyle"><img v-if="item.meta.picUrl" :src="item.meta.picUrl" loading="lazy" decoding="async"></div>
                   <span class="select name" :class="$style.titleText" :aria-label="item.alias ? `${item.name} (${item.alias})` : item.name">
                     {{ item.name }}<span v-if="item.alias" :class="$style.alias">({{ item.alias }})</span>
                   </span>
@@ -96,8 +95,7 @@
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 24%;">
                   <template v-if="getWyArtists(item).length">
-                    <button v-if="getWyArtists(item).length > 2" type="button" :class="$style.linkText" @click.stop="showArtistMenu($event, item)">+{{ getWyArtists(item).length }} 位歌手</button>
-                    <template v-else><template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist, item.source)">{{ artist.name }}</button></template></template>
+                    <material-artist-cells :artists="getWyArtists(item)" @artist-click="openWyArtist($event, item.source)" />
                   </template>
                   <span v-else class="select" :aria-label="item.singer">{{ item.singer }}</span>
                 </div>
@@ -499,6 +497,7 @@ export default {
   overflow: hidden;
   background-position: center;
   background-size: cover;
+  background-color: var(--color-button-background);
 
   img {
     width: 100%;

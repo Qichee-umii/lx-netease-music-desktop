@@ -1,5 +1,5 @@
 import { isWin } from '@common/utils'
-import { closeWindow, createWindow, getBounds, isExistWindow, alwaysOnTopTools, setBounds, setResizeable, setSkipTaskbar } from './main'
+import { closeWindow, createWindow, getBounds, isExistWindow, alwaysOnTopTools, setBounds, setResizeable, setSkipTaskbar, setIgnoreMouseEvents } from './main'
 import { sendConfigChange } from './rendererEvent'
 import { buildLyricConfig, getLyricWindowBounds, initWindowSize, watchConfigKeys } from './utils'
 import { mouseCheckTools } from './mouseCheckTools'
@@ -20,7 +20,11 @@ export const setLrcConfig = (keys: Array<keyof LX.AppSetting>, setting: Partial<
     sendConfigChange(buildLyricConfig(setting))
     if (keys.includes('desktopLyric.isLock') && isLock != global.lx.appSetting['desktopLyric.isLock']) {
       isLock = global.lx.appSetting['desktopLyric.isLock']
-      if (isWin) setResizeable(!global.lx.appSetting['desktopLyric.isLock'])
+      if (isWin) {
+        setResizeable(!global.lx.appSetting['desktopLyric.isLock'])
+        // 锁定后窗口鼠标事件穿透（forward:true 保留 hover 隐藏所需的 mousemove）
+        setIgnoreMouseEvents(isLock, { forward: true })
+      }
       mouseCheckTools.cacnelCheck()
     }
     if (keys.includes('desktopLyric.isHoverHide') && isHoverHide != global.lx.appSetting['desktopLyric.isHoverHide']) {

@@ -426,31 +426,59 @@ export default {
       for (let info of infoArr) {
         info = info.match(this.regExps.mInfo)
         if (info) {
-          switch (info[2]) {
-            case '4000':
+          switch (info[3]) {
+            // 参考 lx-x：优先按格式识别新音质档位
+            case 'HIRFLAC':
               types.push({ type: 'flac24bit', size: info[4] })
               _types.flac24bit = {
                 size: info[4].toLocaleUpperCase(),
               }
               break
-            case '2000':
-              types.push({ type: 'flac', size: info[4] })
-              _types.flac = {
+            case 'ZPGA201':
+              types.push({ type: 'atmos', size: info[4] })
+              _types.atmos = {
                 size: info[4].toLocaleUpperCase(),
               }
               break
-            case '320':
-              types.push({ type: '320k', size: info[4] })
-              _types['320k'] = {
+            case 'ZPGA501':
+              types.push({ type: 'atmos_plus', size: info[4] })
+              _types.atmos_plus = {
                 size: info[4].toLocaleUpperCase(),
               }
               break
-            case '128':
-              types.push({ type: '128k', size: info[4] })
-              _types['128k'] = {
+            case 'ZPLY':
+              types.push({ type: 'master', size: info[4] })
+              _types.master = {
                 size: info[4].toLocaleUpperCase(),
               }
               break
+            default:
+              switch (info[2]) {
+                case '4000':
+                  types.push({ type: 'flac24bit', size: info[4] })
+                  _types.flac24bit = {
+                    size: info[4].toLocaleUpperCase(),
+                  }
+                  break
+                case '2000':
+                  types.push({ type: 'flac', size: info[4] })
+                  _types.flac = {
+                    size: info[4].toLocaleUpperCase(),
+                  }
+                  break
+                case '320':
+                  types.push({ type: '320k', size: info[4] })
+                  _types['320k'] = {
+                    size: info[4].toLocaleUpperCase(),
+                  }
+                  break
+                case '128':
+                  types.push({ type: '128k', size: info[4] })
+                  _types['128k'] = {
+                    size: info[4].toLocaleUpperCase(),
+                  }
+                  break
+              }
           }
         }
       }

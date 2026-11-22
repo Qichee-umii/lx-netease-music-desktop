@@ -1,5 +1,3 @@
-import { qualityList } from '@renderer/store'
-import { QUALITYS } from '@common/constants'
 import { assertApiSupport } from '@renderer/store/utils'
 import musicSdk from '@renderer/utils/musicSdk'
 import {
@@ -219,19 +217,24 @@ export const getOnlineOtherSourcePicByLocal = async(musicInfo: LX.Music.MusicInf
   })
 }
 
-export const TRY_QUALITYS_LIST = ['flac24bit', 'flac', '320k'] as const
-type TryQualityType = typeof TRY_QUALITYS_LIST[number]
+export const TRY_QUALITYS_LIST = ['master', 'atmos_plus', 'atmos', 'flac24bit', 'flac', '320k'] as const
+// 音质档位从高到低（参考 lx-x QUALITY_RANK）
+const QUALITY_RANK: readonly LX.Quality[] = [...TRY_QUALITYS_LIST, '192k', '128k']
+
+/**
+ * 取某首歌实际应播放的音质：优先用该音源单独设置（player.playQualityBySource），未设置则回退全局偏好。
+ */
+export const getPlayQualityBySource = (musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
+  const bySource = appSetting['player.playQualityBySource']
+  return bySource?.[musicInfo.source] || appSetting['player.playQuality']
+}
+
 export const getPlayQuality = (highQuality: LX.Quality, musicInfo: LX.Music.MusicInfoOnline): LX.Quality => {
   let type: LX.Quality = '128k'
-  if (TRY_QUALITYS_LIST.includes(highQuality as TryQualityType)) {
-    let list = qualityList.value[musicInfo.source]
-    if (!list?.length && musicInfo.source == 'wy' && appSetting['common.wy_cookie'].trim()) {
-      list = [...QUALITYS]
-    }
-
-    let t = TRY_QUALITYS_LIST
-      .slice(TRY_QUALITYS_LIST.indexOf(highQuality as TryQualityType))
-      .find(q => musicInfo.meta._qualitys[q] && list?.includes(q))
+  const rankIndex = QUALITY_RANK.indexOf(highQuality)
+  if (rankIndex > -1) {
+    // 与 lx-x 一致：从偏好档位向下找歌曲可用的第一个档位，不再依赖外部音源的档位声明
+    const t = QUALITY_RANK.slice(rankIndex).find(q => musicInfo.meta._qualitys[q])
 
     if (t) type = t
   }
@@ -259,7 +262,7 @@ export const getOnlineOtherSourceMusicUrl = async({ musicInfos, quality, onToggl
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
     if (!assertApiSupport(musicInfo.source)) continue
-    itemQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
+    itemQuality = quality ?? getPlayQuality(getPlayQualityBySource(musicInfo), musicInfo)
     if (!musicInfo.meta._qualitys[itemQuality]) continue
 
     console.log('try toggle to: ', musicInfo.source, musicInfo.name, musicInfo.singer, musicInfo.interval)
@@ -306,7 +309,7 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
 }> => {
   if (!await window.lx.apiInitPromise[0]) throw new Error('source init failed')
   // console.log(musicInfo.source)
-  const targetQuality = quality ?? getPlayQuality(appSetting['player.playQuality'], musicInfo)
+  const targetQuality = quality ?? getPlayQuality(getPlayQualityBySource(musicInfo), musicInfo)
 
   let reqPromise
   try {

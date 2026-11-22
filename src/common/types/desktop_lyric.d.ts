@@ -16,6 +16,8 @@ declare namespace LX {
       'desktopLyric.isDelayScroll': LX.AppSetting['desktopLyric.isDelayScroll']
       'desktopLyric.scrollAlign': LX.AppSetting['desktopLyric.scrollAlign']
       'desktopLyric.isHoverHide': LX.AppSetting['desktopLyric.isHoverHide']
+      'desktopLyric.isSingleLine': LX.AppSetting['desktopLyric.isSingleLine']
+      'desktopLyric.isSwapTranslationAndRoma': LX.AppSetting['desktopLyric.isSwapTranslationAndRoma']
       'desktopLyric.direction': LX.AppSetting['desktopLyric.direction']
       'desktopLyric.style.align': LX.AppSetting['desktopLyric.style.align']
       'desktopLyric.style.font': LX.AppSetting['desktopLyric.style.font']

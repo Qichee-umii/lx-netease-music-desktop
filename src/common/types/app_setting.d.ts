@@ -121,6 +121,11 @@ declare global {
       'player.playQuality': LX.Quality
 
       /**
+       * 各音源单独的优先播放音质，未设置时跟随 player.playQuality
+       */
+      'player.playQualityBySource': Partial<Record<LX.OnlineSource, LX.Quality>>
+
+      /**
        * 是否显示任务栏进度条
        */
       'player.isShowTaskProgess': boolean
@@ -416,6 +421,16 @@ declare global {
        * 是否在鼠标划过桌面歌词窗口时降低歌词透明度
        */
       'desktopLyric.isHoverHide': boolean
+
+      /**
+       * 单行模式（仅显示当前行歌词）
+       */
+      'desktopLyric.isSingleLine': boolean
+
+      /**
+       * 调换桌面歌词译文与罗马音位置
+       */
+      'desktopLyric.isSwapTranslationAndRoma': boolean
 
       /**
        * 歌词方向

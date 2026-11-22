@@ -155,7 +155,19 @@ export default (isComputeHeight) => {
     startLyricScrollTimeout()
   }
 
+  const isSingleLine = () => setting['desktopLyric.isSingleLine']
+
   const setLyric = (lines) => {
+    if (isSingleLine()) {
+      const cur = lines[Math.max(lyric.line, 0)]?.dom_line
+      dom_lyric_text.value.textContent = ''
+      if (cur) dom_lyric_text.value.appendChild(cur)
+      nextTick(() => {
+        dom_lines = dom_lyric.value.querySelectorAll('.line-content')
+        line_heights = Array.from(dom_lines).map(l => l.clientHeight)
+      })
+      return
+    }
     const dom_line_content = document.createDocumentFragment()
     for (const line of lines) {
       dom_line_content.appendChild(line.dom_line)
@@ -167,6 +179,15 @@ export default (isComputeHeight) => {
       line_heights = Array.from(dom_lines).map(l => l.clientHeight)
       handleScrollLrc()
     })
+  }
+
+  const renderSingleLine = (line) => {
+    if (!dom_lyric_text.value) return
+    const cur = lyric.lines[line]?.dom_line
+    if (!cur) return
+    if (dom_lyric_text.value.firstChild === cur) return
+    dom_lyric_text.value.textContent = ''
+    dom_lyric_text.value.appendChild(cur)
   }
 
   const initLrc = (lines, oLines) => {
@@ -191,6 +212,10 @@ export default (isComputeHeight) => {
     setImmediate(() => {
       prevActiveLine = line
     })
+    if (isSingleLine()) {
+      renderSingleLine(line)
+      return
+    }
     if (line < 0 || !lyric.lines.length) return
     if (line == 0 && isSetedLines) return isSetedLines = false
     isSetedLines &&= false
@@ -208,6 +233,9 @@ export default (isComputeHeight) => {
 
   watch(() => lyric.lines, initLrc)
   watch(() => lyric.line, scrollLine)
+  watch(() => setting['desktopLyric.isSingleLine'], () => {
+    setLyric(lyric.lines)
+  })
 
   onMounted(() => {
     document.addEventListener('mousemove', handleMouseMsMove)

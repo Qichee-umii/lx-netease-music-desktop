@@ -54,18 +54,20 @@ export default {
    */
   getSongList(id, page = 1, limit = 100, order = 'hot', retryNum = 0) {
     if (retryNum > 2) return Promise.reject(new Error('get singer song list faild.'))
-    if (page === 1) page = 0
-    return httpFetch('https://music.163.com/weapi/v1/artist/songs', {
-      method: 'post',
+    // 页码从 1 开始，内部换算为基于 0 的 offset（page=1 → offset 0，page=2 → offset limit）
+    const offset = limit * Math.max(page - 1, 0)
+    // 公开接口无需 weapi 加密，分页由 offset 控制（total 为歌手总曲目数）
+    return httpFetch('https://music.163.com/api/v1/artist/songs', {
+      method: 'get',
       headers: headers(`https://music.163.com/artist?id=${id}`),
-      form: weapi({
+      form: {
         id,
         private_cloud: 'true',
         work_type: 1,
         order,
         limit,
-        offset: limit * page,
-      }),
+        offset,
+      },
     }).promise.then(({ body, statusCode }) => {
       if (statusCode !== 200 || !body?.songs || body.code != 200) throw new Error('get singer song list faild.')
 

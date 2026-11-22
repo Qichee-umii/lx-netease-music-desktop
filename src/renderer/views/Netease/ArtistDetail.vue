@@ -40,7 +40,7 @@
     </div>
 
     <div v-show="tab == 'songs'" :class="$style.panel">
-      <div :class="$style.songListWrap">
+      <div :class="$style.songListWrap" @click="handleSongMessageClick">
         <material-online-list
           ref="onlineListRef"
           :list-id="artistSongListId"
@@ -56,7 +56,7 @@
     </div>
 
     <div v-show="tab == 'albums'" class="scroll" :class="$style.albumPanel">
-      <div v-if="albumMessage" :class="$style.message">{{ albumMessage }}</div>
+      <div v-if="albumMessage" :class="[$style.message, { [$style.retryable]: albumsFailed }]" @click="handleAlbumMessageClick">{{ albumMessage }}</div>
       <div v-else :class="$style.grid">
         <button v-for="album in albums" :key="album.id" type="button" :class="$style.card" @click="openAlbum(album)">
           <img :src="album.info.img" decoding="async" loading="lazy">
@@ -91,6 +91,8 @@ const albums = ref<any[]>([])
 const songMessage = ref('加载中...')
 const albumMessage = ref('加载中...')
 const onlineListRef = ref<any>(null)
+const songsFailed = ref(false)
+const albumsFailed = ref(false)
 
 const artistId = computed(() => String(route.query.id ?? ''))
 const source = computed(() => (route.query.source ?? 'wy') as string)
@@ -103,7 +105,7 @@ const artistBg = computed(() => artist.value?.info?.cover ?? artistAvatar.value)
 const artistAlias = computed(() => artist.value?.info?.alias?.length ? artist.value.info.alias[0] : '')
 const artistDesc = computed(() => artist.value?.info?.desc ?? '')
 const songTotal = computed(() => artist.value?.count?.music ?? songs.value.length)
-const albumTotal = computed(() => artist.value?.count?.album ?? albums.value.length)
+const albumTotal = computed(() => artist.value?.count?.album || albums.value.length)
 const isFollowed = computed(() => wyFollowedArtists.some(item => String(item.id) == artistId.value))
 const artistSongListId = computed(() => `${source.value}_artist_${artistId.value}_${songSort.value}`)
 
@@ -116,29 +118,85 @@ const restoreScroll = () => {
   })
 }
 
+const fetchSongPage = async(page: number, sort = songSort.value) => {
+  if (isWy.value) {
+    return musicSdk.wy.singer.getSongList(artistId.value, page, 100, sort)
+  }
+  if (source.value == 'tx') {
+    // tx 歌手搜索支持热门/最新排序（GetSingerSongList order: 1=热门 2=最新）；kw/kg 无排序参数自动忽略
+    return musicSdk.tx.songList.getListDetail(`artist_${artistId.value}`, page, sort)
+  }
+  return (musicSdk as any)[source.value].songList.getListDetail(source.value == 'mg'
+    ? `artist_${artistId.value}@${encodeURIComponent(String(route.query.name ?? ''))}`
+    : `artist_${artistId.value}`, page)
+}
+
 const loadSongs = async(sort = songSort.value) => {
   if (!artistId.value) return
+  songsFailed.value = false
   songMessage.value = '加载中...'
   try {
-    let songRes
-    if (isWy.value) {
-      songRes = await musicSdk.wy.singer.getSongList(artistId.value, 1, 100, sort)
-    } else if (source.value == 'tx') {
-      // tx 歌手搜索支持热门/最新排序（GetSingerSongList order: 1=热门 2=最新）；kw/kg 无排序参数自动忽略
-      songRes = await musicSdk.tx.songList.getListDetail(`artist_${artistId.value}`, 1, sort)
-    } else {
-      songRes = await (musicSdk as any)[source.value].songList.getListDetail(source.value == 'mg'
-        ? `artist_${artistId.value}@${encodeURIComponent(String(route.query.name ?? ''))}`
-        : `artist_${artistId.value}`, 1)
+    const first = await fetchSongPage(1, sort)
+    if (sort != songSort.value) return
+    let list = first.list ?? []
+    const total = first.total ?? list.length
+    const limit = first.limit ?? 100
+    const pageCount = limit > 0 ? Math.ceil(total / limit) : 1
+    const capPages = Math.min(pageCount, 20)
+    if (capPages > 1 && list.length) {
+      const rest = await Promise.all(
+        Array.from({ length: capPages - 1 }, async(_, i) => fetchSongPage(i + 2, sort).catch(() => null)),
+      )
+      let merged = list
+      for (const r of rest) {
+        if (r?.list) merged = merged.concat(r.list)
+      }
+      list = merged
     }
     if (sort != songSort.value) return
-    songs.value = deduplicationList(songRes.list.map((m: any) => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
+    songs.value = deduplicationList(list.map((m: any) => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
     restoreScroll()
     songMessage.value = songs.value.length ? '' : '暂无歌曲'
   } catch (err: any) {
     if (sort != songSort.value) return
-    songMessage.value = err?.message || '歌手歌曲加载失败'
+    songsFailed.value = true
+    songMessage.value = (err?.message || '歌手歌曲加载失败') + '，点击重试'
     songs.value = []
+    console.log(err)
+  }
+}
+
+const loadAlbums = async() => {
+  if (!artistId.value) return
+  albumsFailed.value = false
+  albumMessage.value = '加载中...'
+  try {
+    let albumRes
+    if (isWy.value) {
+      albumRes = await musicSdk.wy.singer.getAlbumList(artistId.value, 1, 100)
+    } else if (source.value == 'kg') {
+      albumRes = await musicSdk.kg.singer.getAlbumList(artistId.value, 1, 100)
+    } else if (source.value == 'tx') {
+      albumRes = await musicSdk.tx.singer.getAlbumList(artistId.value, 1, 100)
+    } else if (source.value == 'kw') {
+      // kw 无歌手专辑 API：用专辑搜索 + 按 artistId 过滤的近似方案
+      const albumResKw = await musicSdk.kw.musicSearch.searchAlbum(String(route.query.name ?? ''), 1, 100)
+      albums.value = albumResKw.list
+        .filter((a: any) => String(a.artistId) === artistId.value)
+        .map((a: any) => ({ id: a.id, info: { name: a.name, author: a.artistName, img: a.picUrl }, count: a.size }))
+      albumMessage.value = albums.value.length ? '' : '暂无专辑'
+      return
+    } else {
+      albums.value = []
+      albumMessage.value = ''
+      return
+    }
+    albums.value = albumRes.list
+    albumMessage.value = albums.value.length ? '' : '暂无专辑'
+  } catch (err: any) {
+    albumsFailed.value = true
+    albums.value = []
+    albumMessage.value = (err?.message || '专辑加载失败') + '，点击重试'
     console.log(err)
   }
 }
@@ -149,21 +207,19 @@ const load = async() => {
     albumMessage.value = '缺少歌手 ID'
     return
   }
+  songsFailed.value = false
+  albumsFailed.value = false
   if (isWy.value) {
     try {
-      const [info, albumRes] = await Promise.all([
-        musicSdk.wy.singer.getInfo(artistId.value),
-        musicSdk.wy.singer.getAlbumList(artistId.value, 1, 100),
-      ])
-      artist.value = info
-      albums.value = albumRes.list
-      await loadSongs()
-      albumMessage.value = albums.value.length ? '' : '暂无专辑'
+      artist.value = await musicSdk.wy.singer.getInfo(artistId.value)
     } catch (err: any) {
-      songMessage.value = err?.message || '歌手详情加载失败'
-      albumMessage.value = err?.message || '歌手详情加载失败'
+      songsFailed.value = true
+      songMessage.value = (err?.message || '歌手详情加载失败') + '，点击重试'
       console.log(err)
     }
+    if (!hasAlbumTab.value) albumMessage.value = ''
+    else void loadAlbums()
+    await loadSongs()
     return
   }
   // 其他平台：统一走 songList 的 artist_ 前缀分支（返回 {list,total,info{name,img,desc,author}}）
@@ -171,7 +227,6 @@ const load = async() => {
   const detailId = source.value == 'mg'
     ? `artist_${artistId.value}@${encodeURIComponent(String(route.query.name ?? ''))}`
     : `artist_${artistId.value}`
-  albumMessage.value = hasAlbumTab.value ? '加载中...' : ''
   try {
     const res = await (musicSdk as any)[source.value].songList.getListDetail(detailId, 1)
     artist.value = {
@@ -182,52 +237,38 @@ const load = async() => {
       },
       count: { music: res.total ?? 0, album: 0 },
     }
-    songs.value = deduplicationList(res.list.map((m: any) => toNewMusicInfo(m)) as LX.Music.MusicInfoOnline[])
-    restoreScroll()
-    songMessage.value = songs.value.length ? '' : '暂无歌曲'
   } catch (err: any) {
-    songMessage.value = err?.message || '歌手详情加载失败'
-    songs.value = []
+    songsFailed.value = true
     console.log(err)
-    return
   }
-  if (source.value == 'kg') {
-    try {
-      const albumRes = await musicSdk.kg.singer.getAlbumList(artistId.value, 1, 100)
-      albums.value = albumRes.list
-      albumMessage.value = albums.value.length ? '' : '暂无专辑'
-    } catch (err: any) {
-      albums.value = []
-      albumMessage.value = err?.message || '专辑加载失败'
-      console.log(err)
+  // tx：并发拉真实歌手信息（GetHomepageHeader 头像/名字 + 专辑/歌曲总数），失败保持原数据
+  if (source.value == 'tx') void enrichTxArtistInfo()
+  if (!hasAlbumTab.value) albumMessage.value = ''
+  else void loadAlbums()
+  await loadSongs()
+}
+
+const enrichTxArtistInfo = async() => {
+  if (!artistId.value) return
+  try {
+    const detail = await (musicSdk as any).tx.singer.getInfo(artistId.value)
+    if (!artist.value) return
+    artist.value = {
+      ...artist.value,
+      id: detail.id,
+      info: {
+        ...artist.value.info,
+        name: detail.info?.name || artist.value.info?.name,
+        avatar: detail.info?.avatar || artist.value.info?.avatar,
+        gender: detail.info?.gender || '',
+      },
+      count: {
+        music: detail.count?.music || artist.value.count?.music || 0,
+        album: detail.count?.album || 0,
+      },
     }
-    return
-  }
-  if (source.value == 'tx') {
-    try {
-      const albumRes = await musicSdk.tx.singer.getAlbumList(artistId.value, 1, 100)
-      albums.value = albumRes.list
-      albumMessage.value = albums.value.length ? '' : '暂无专辑'
-    } catch (err: any) {
-      albums.value = []
-      albumMessage.value = err?.message || '专辑加载失败'
-      console.log(err)
-    }
-    return
-  }
-  if (source.value == 'kw') {
-    // kw 无歌手专辑 API：用专辑搜索 + 按 artistId 过滤的近似方案
-    try {
-      const albumRes = await musicSdk.kw.musicSearch.searchAlbum(String(route.query.name ?? ''), 1, 100)
-      albums.value = albumRes.list
-        .filter((a: any) => String(a.artistId) === artistId.value)
-        .map((a: any) => ({ id: a.id, info: { name: a.name, author: a.artistName, img: a.picUrl }, count: a.size }))
-      albumMessage.value = albums.value.length ? '' : '暂无专辑'
-    } catch (err: any) {
-      albums.value = []
-      albumMessage.value = '专辑加载失败'
-      console.log(err)
-    }
+  } catch (err) {
+    console.log(err)
   }
 }
 
@@ -271,6 +312,16 @@ const handleFollowArtist = async() => {
     picUrl: artistAvatar.value,
     img1v1Url: artistAvatar.value,
   })
+}
+
+const handleSongMessageClick = () => {
+  if (!songsFailed.value) return
+  void loadSongs()
+}
+
+const handleAlbumMessageClick = () => {
+  if (!albumsFailed.value) return
+  void loadAlbums()
 }
 
 onMounted(() => {
@@ -523,5 +574,14 @@ watch(() => [route.query.id, route.query.source], () => {
   align-items: center;
   justify-content: center;
   color: var(--color-font-label);
+
+  &.retryable {
+    cursor: pointer;
+    color: var(--color-primary);
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
 </style>

@@ -38,8 +38,18 @@ dd
   div
     base-checkbox.gap-left(
       v-for="item in playQualityList" :id="`setting_play_quality_${item}`" :key="item"
-      name="setting_play_quality" need :model-value="appSetting['player.playQuality']" :value="item" :label="item"
+      name="setting_play_quality" need :model-value="appSetting['player.playQuality']" :value="item" :label="qualityLabel(item)"
       @update:model-value="updateSetting({'player.playQuality': $event})")
+
+dd
+  h3#basic_play_quality_by_source {{ $t('setting__play_quality_by_source') }}
+  div
+    .gap-left.quality-source-row(v-for="source in sourceList" :key="source")
+      span.quality-source-name {{ $t(`source_${source}`) }}
+      base-selection.gap-left(
+        :model-value="appSetting['player.playQualityBySource'][source] ?? ''"
+        :list="sourceQualityList" item-key="value" item-name="label"
+        @change="handleUpdateSourceQuality(source, $event.value)")
 
 dd(:aria-label="$t('setting__play_mediaDevice_title')")
   h3#play_mediaDevice {{ $t('setting__play_mediaDevice') }}
@@ -56,6 +66,7 @@ import { appSetting, saveMediaDeviceId, updateSetting } from '@renderer/store/se
 import { setPowerSaveBlocker } from '@renderer/core/player/utils'
 import { isPlay } from '@renderer/store/player/state'
 import { TRY_QUALITYS_LIST } from '@renderer/core/music/utils'
+import { QUALITY_LABELS } from '@renderer/utils/compositions/usePlayQuality'
 import { isMac } from '@common/utils'
 
 
@@ -64,6 +75,21 @@ export default {
   setup() {
     const t = useI18n()
     const playQualityList = [...TRY_QUALITYS_LIST, '128k'].reverse()
+    // 与播放栏音质按钮一致的档位名称（320K→HQ、FLAC→SQ、FLAC 24bit→Hi-Res 等）
+    const qualityLabel = quality => QUALITY_LABELS[quality] ?? quality
+
+    // 各音源单独的优先播放音质（lx-x 同款：全局 + 分平台）
+    const sourceList = ['wy', 'tx', 'kg', 'kw', 'mg']
+    const sourceQualityList = [
+      { value: '', label: t('setting__play_quality_follow_global') },
+      ...[...playQualityList].map(quality => ({ value: quality, label: qualityLabel(quality) })),
+    ]
+    const handleUpdateSourceQuality = (source, quality) => {
+      const next = { ...appSetting['player.playQualityBySource'] }
+      if (quality) next[source] = quality
+      else next[source] = undefined
+      updateSetting({ 'player.playQualityBySource': next })
+    }
 
     const mediaDevices = ref([])
     const getMediaDevice = async() => {
@@ -148,8 +174,26 @@ export default {
       isMaxOutputChannelCount,
       handleUpdateMaxOutputChannelCount,
       playQualityList,
+      qualityLabel,
+      sourceList,
+      sourceQualityList,
+      handleUpdateSourceQuality,
       isMac,
     }
   },
 }
 </script>
+
+<style lang="less" module>
+.quality-source-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.quality-source-name {
+  display: inline-block;
+  width: 5em;
+  opacity: .8;
+}
+</style>

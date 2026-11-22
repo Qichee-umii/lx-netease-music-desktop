@@ -51,6 +51,20 @@ export default {
           size,
         }
       }
+      if (item.jm?.size != null) {
+        size = sizeFormate(item.jm.size)
+        types.push({ type: 'master', size })
+        _types.master = {
+          size,
+        }
+      }
+      if (item.je?.size != null) {
+        size = sizeFormate(item.je.size)
+        types.push({ type: 'atmos', size })
+        _types.atmos = {
+          size,
+        }
+      }
       switch (item.privilege.maxbr) {
         case 999000:
           size = item.sq ? sizeFormate(item.sq.size) : null

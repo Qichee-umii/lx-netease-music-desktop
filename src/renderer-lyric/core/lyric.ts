@@ -43,7 +43,7 @@ export const setLyric = () => {
   const extendedLyrics = []
   if (setting['player.isShowLyricRoma'] && lyrics.rlyric) extendedLyrics.push(lyrics.rlyric)
   if (setting['player.isShowLyricTranslation'] && lyrics.tlyric) extendedLyrics.push(lyrics.tlyric)
-  if (setting['player.isSwapLyricTranslationAndRoma']) extendedLyrics.reverse()
+  if (setting['desktopLyric.isSwapTranslationAndRoma']) extendedLyrics.reverse()
   lrc.setLyric(
     setting['player.isPlayLxlrc'] && lyrics.lxlyric ? lyrics.lxlyric : lyrics.lyric,
     extendedLyrics,

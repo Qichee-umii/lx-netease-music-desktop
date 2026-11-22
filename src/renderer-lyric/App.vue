@@ -90,6 +90,12 @@ body {
       background-color: transparent;
     }
   }
+  // 锁定（鼠标穿透）时歌词窗口不再展示移动/抓取类光标，
+  // 避免歌词覆盖主窗口区域时鼠标出现“拖动状态”
+  &.lock,
+  &.lock * {
+    cursor: default !important;
+  }
   &.hide {
     opacity: .05;
 

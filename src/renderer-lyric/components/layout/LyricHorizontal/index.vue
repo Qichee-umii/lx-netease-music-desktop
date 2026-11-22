@@ -5,7 +5,7 @@
     :style="lrcStyles" @wheel="handleWheel" @mousedown="handleLyricMouseDown" @touchstart="handleLyricTouchStart"
   >
     <div :class="$style.lyricSpace" />
-    <div ref="dom_lyric_text" />
+    <div ref="dom_lyric_text" :class="$style.lyricText" />
     <div :class="$style.lyricSpace" />
   </div>
 </template>
@@ -31,6 +31,7 @@ export default {
       if (setting['desktopLyric.style.isFontWeightFont']) name.push(styles.fontWeightFont)
       if (setting['desktopLyric.style.isFontWeightLine']) name.push(styles.fontWeightLine)
       if (setting['desktopLyric.style.isFontWeightExtended']) name.push(styles.fontWeightExtended)
+      if (setting['desktopLyric.isSingleLine']) name.push(styles.singleLine)
       return name
     })
     const lrcStyles = computed(() => ({
@@ -270,7 +271,18 @@ export default {
     }
   }
 }
-// .footer {
+.singleLine {
+  .lyricSpace {
+    display: none;
+  }
+
+  .lyricText {
+    height: 100%;
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: center;
+  }
+}// .footer {
 //   flex: 0 0 100px;
 //   overflow: hidden;
 //   display: flex;

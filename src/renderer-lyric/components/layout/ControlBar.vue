@@ -35,6 +35,14 @@
             <use xlink:href="#icon-opactiy-decrease" />
           </svg>
         </button>
+        <button :class="$style.btn" :title="$t('desktop_lyric__' + (setting['desktopLyric.isSingleLine'] ? 'single_line_off' : 'single_line_on'))" @click="handleSingleLine">
+          <svg v-if="setting['desktopLyric.isSingleLine']" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="20px" viewBox="0 0 24 24" space="preserve">
+            <use xlink:href="#icon-single-line-on" />
+          </svg>
+          <svg v-else version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="20px" viewBox="0 0 24 24" space="preserve">
+            <use xlink:href="#icon-single-line-off" />
+          </svg>
+        </button>
         <button :class="$style.btn" :title="$t('desktop_lyric__' + (setting['desktopLyric.style.isZoomActiveLrc'] ? 'lrc_active_zoom_off' : 'lrc_active_zoom_on'))" @click="handleZoomLrc">
           <svg v-if="setting['desktopLyric.style.isZoomActiveLrc']" version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" height="20px" viewBox="0 0 24 24" space="preserve">
             <use xlink:href="#icon-vibrate-off" />
@@ -79,6 +87,9 @@ export default {
     const handleZoomLrc = () => {
       updateSetting({ 'desktopLyric.style.isZoomActiveLrc': !setting['desktopLyric.style.isZoomActiveLrc'] })
     }
+    const handleSingleLine = () => {
+      updateSetting({ 'desktopLyric.isSingleLine': !setting['desktopLyric.isSingleLine'] })
+    }
     const handleFontChange = (action, step) => {
       let num
       switch (action) {
@@ -113,6 +124,7 @@ export default {
       handleLock,
       handleAlwaysOnTop,
       handleZoomLrc,
+      handleSingleLine,
       handleFontChange,
       handleOpactiyChange,
       handleLyricMouseDown,

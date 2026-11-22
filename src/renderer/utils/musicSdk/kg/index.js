@@ -7,6 +7,7 @@ import pic from './pic'
 import lyric from './lyric'
 import hotSearch from './hotSearch'
 import comment from './comment'
+import { getQualityDetail } from './quality_detail'
 // import tipSearch from './tipSearch'
 
 const kg = {
@@ -17,6 +18,7 @@ const kg = {
   singer,
   hotSearch,
   comment,
+  getQualityDetail,
   getMusicUrl(songInfo, type) {
     return apis('kg').getMusicUrl(songInfo, type)
   },

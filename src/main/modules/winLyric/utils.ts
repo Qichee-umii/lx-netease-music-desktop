@@ -63,6 +63,8 @@ export const watchConfigKeys = [
   'desktopLyric.isDelayScroll',
   'desktopLyric.scrollAlign',
   'desktopLyric.isHoverHide',
+  'desktopLyric.isSingleLine',
+  'desktopLyric.isSwapTranslationAndRoma',
   'desktopLyric.direction',
   'desktopLyric.style.align',
   'desktopLyric.style.lyricUnplayColor',

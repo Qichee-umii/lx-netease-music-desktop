@@ -1,5 +1,8 @@
 import { dateFormat } from '@common/utils/common'
 
+// 显式转出，供 tsc 在无路径别名的根 tsconfig 下解析（js 模块统一从这里取 sizeFormate）
+export { sizeFormate } from '@common/utils/common'
+
 export * from '@common/utils/renderer'
 export * from '@common/utils/nodejs'
 export * from '@common/utils/common'

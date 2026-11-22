@@ -11,6 +11,7 @@ import user from './user'
 import * as cookie from './api-cookie'
 import singer from './singer'
 import album from './album'
+import { getQualityDetail } from './quality_detail'
 // import tipSearch from './tipSearch'
 
 const wy = {
@@ -25,6 +26,7 @@ const wy = {
   cookie,
   singer,
   album,
+  getQualityDetail,
   getMusicUrl(songInfo, type) {
     return apis('wy').getMusicUrl(songInfo, type)
   },

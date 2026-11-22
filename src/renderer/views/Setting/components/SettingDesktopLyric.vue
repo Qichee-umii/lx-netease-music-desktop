@@ -30,6 +30,10 @@ dd
     base-checkbox(id="setting_desktop_lyric_ellipsis" :model-value="appSetting['desktopLyric.style.ellipsis']" :label="$t('setting__desktop_lyric_ellipsis')" @update:model-value="updateSetting({ 'desktopLyric.style.ellipsis': $event })")
   .gap-top
     base-checkbox(id="setting_desktop_lyric_zoom" :model-value="appSetting['desktopLyric.style.isZoomActiveLrc']" :label="$t('desktop_lyric__lrc_active_zoom_on')" @update:model-value="updateSetting({ 'desktopLyric.style.isZoomActiveLrc': $event })")
+  .gap-top
+    base-checkbox(id="setting_desktop_lyric_single_line" :model-value="appSetting['desktopLyric.isSingleLine']" :label="$t('setting__desktop_lyric_single_line')" @update:model-value="updateSetting({ 'desktopLyric.isSingleLine': $event })")
+  .gap-top
+    base-checkbox(id="setting_desktop_lyric_swap_translation_roma" :model-value="appSetting['desktopLyric.isSwapTranslationAndRoma']" :label="$t('setting__desktop_lyric_swap_translation_roma')" @update:model-value="updateSetting({ 'desktopLyric.isSwapTranslationAndRoma': $event })")
   //- .gap-top
     base-checkbox(id="setting_desktop_lyric_fontWeight" :model-value="appSetting['desktopLyric.style.fontWeight']" @update:model-value="updateSetting({ 'desktopLyric.style.fontWeight': $event })" :label="$t('setting__desktop_lyric_font_weight')")
 

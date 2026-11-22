@@ -38,6 +38,8 @@ const defaultSetting: LX.AppSetting = {
   'player.startupAutoPlay': false,
   'player.togglePlayMethod': 'listLoop',
   'player.playQuality': '128k',
+  // 各音源单独的优先播放音质，未设置（或设为空）时跟随全局 player.playQuality
+  'player.playQualityBySource': {},
   'player.isShowTaskProgess': true,
   'player.isShowStatusBarLyric': false,
   'player.volume': 1,
@@ -99,6 +101,8 @@ const defaultSetting: LX.AppSetting = {
   'desktopLyric.isDelayScroll': true,
   'desktopLyric.scrollAlign': 'center',
   'desktopLyric.isHoverHide': false,
+  'desktopLyric.isSingleLine': false,
+  'desktopLyric.isSwapTranslationAndRoma': false,
   'desktopLyric.direction': 'horizontal',
   'desktopLyric.style.align': 'center',
   'desktopLyric.style.font': '',

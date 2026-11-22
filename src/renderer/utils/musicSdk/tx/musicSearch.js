@@ -116,6 +116,29 @@ export default {
           size,
         }
       }
+      if (Array.isArray(file.size_new)) {
+        if (file.size_new[0]) {
+          let size = sizeFormate(file.size_new[0])
+          types.push({ type: 'master', size })
+          _types.master = {
+            size,
+          }
+        }
+        if (file.size_new[1]) {
+          let size = sizeFormate(file.size_new[1])
+          types.push({ type: 'atmos', size })
+          _types.atmos = {
+            size,
+          }
+        }
+        if (file.size_new[2]) {
+          let size = sizeFormate(file.size_new[2])
+          types.push({ type: 'atmos_plus', size })
+          _types.atmos_plus = {
+            size,
+          }
+        }
+      }
       // types.reverse()
       let albumId = ''
       let albumName = ''

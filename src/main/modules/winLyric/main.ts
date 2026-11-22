@@ -144,6 +144,8 @@ export const createWindow = () => {
   void browserWindow.loadURL(winURL + `?os=${getPlatform()}&dark=${shouldUseDarkColors}&theme=${encodeURIComponent(JSON.stringify(theme))}`)
 
   winEvent()
+  // 启动时若已处于锁定状态，直接开启鼠标穿透（forward 保留 hover 隐藏监听）
+  if (isWin && global.lx.appSetting['desktopLyric.isLock']) browserWindow.setIgnoreMouseEvents(true, { forward: true })
   // browserWindow.webContents.openDevTools()
   global.lx.event_app.desktop_lyric_window_created(browserWindow)
 }

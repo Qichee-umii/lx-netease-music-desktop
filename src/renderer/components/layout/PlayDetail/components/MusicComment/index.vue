@@ -117,6 +117,10 @@ export default {
     show(n) {
       if (n) this.handleShowComment()
     },
+    // 播放详情页打开评论后切歌时跟随刷新（重新拉取新歌评论）
+    musicInfo() {
+      if (this.show) this.handleShowComment()
+    },
   },
   mounted() {
     this.setWidth()
@@ -206,11 +210,14 @@ export default {
       this.hotComment.total = 0
       this.hotComment.maxPage = 1
       this.hotComment.nextPage = 1
+      // 先清空旧列表，避免切歌瞬间仍显示上一首的评论
+      this.hotComment.list = []
 
       this.newComment.page = 1
       this.newComment.total = 0
       this.newComment.maxPage = 1
       this.newComment.nextPage = 1
+      this.newComment.list = []
       // }
       this.isShowComment = true
 

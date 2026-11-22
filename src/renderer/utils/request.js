@@ -70,6 +70,7 @@ const defaultHeaders = {
  * @param {*} options
  */
 const buildHttpPromose = (url, options) => {
+  /** @type {{ isCancelled: boolean, cancelHttp: Function, promise: Promise<any>, requestObj?: any, cancelFn?: Function }} */
   let obj = {
     isCancelled: false,
     cancelHttp: () => {

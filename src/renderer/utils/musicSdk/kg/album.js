@@ -7,30 +7,16 @@ export default {
    * @param {*} id
    */
   async getAlbumInfo(id) {
-    const albumInfoRequest = await createHttpFetch('http://kmrserviceretry.kugou.com/container/v1/album?dfid=1tT5He3kxrNC4D29ad1MMb6F&mid=22945702112173152889429073101964063697&userid=0&appid=1005&clientver=11589', {
-      method: 'POST',
-      body: {
-        appid: 1005,
-        clienttime: 1681833686,
-        clientver: 11589,
-        data: [{ album_id: id }],
-        fields: 'language,grade_count,intro,mix_intro,heat,category,sizable_cover,cover,album_name,type,quality,publish_company,grade,special_tag,author_name,publish_date,language_id,album_id,exclusive,is_publish,trans_param,authors,album_tag',
-        isBuy: 0,
-        key: 'e6f3306ff7e2afb494e89fbbda0becbf',
-        mid: '22945702112173152889429073101964063697',
-        show_album_tag: 0,
-      },
-    })
-    if (!albumInfoRequest) return Promise.reject(new Error('get album info failed.'))
-    const albumInfo = albumInfoRequest[0]
+    // v3/album/info 端点：{errcode,status?,data:{albumname,singername,intro,publishtime,imgurl,...}}，createHttpFetch 自动解包 data
+    const albumInfo = await createHttpFetch(`http://mobiles.kugou.com/api/v3/album/info?version=5&albumid=${id}`)
+    if (!albumInfo?.albumname) return Promise.reject(new Error('get album info failed.'))
 
     return {
-      name: albumInfo.album_name,
-      image: albumInfo.sizable_cover.replace('{size}', 240),
+      name: albumInfo.albumname,
+      image: albumInfo.imgurl ? albumInfo.imgurl.replace('{size}', 240) : '',
       desc: albumInfo.intro,
-      authorName: albumInfo.author_name,
-      publishDate: albumInfo.publish_date ?? '',
-      // play_count: this.formatPlayCount(info.count),
+      authorName: albumInfo.singername,
+      publishDate: albumInfo.publishtime?.split(' ')[0] ?? '',
     }
   },
   /**

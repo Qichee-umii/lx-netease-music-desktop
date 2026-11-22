@@ -42,7 +42,7 @@
             </transition>
           </div>
           <div class="list-item-cell auto name" :aria-label="item.name">
-            <div v-if="showCover && item.meta.picUrl" :class="$style.coverCell" :style="coverCellStyle"><img loading="lazy" :src="item.meta.picUrl" :aria-label="item.meta.albumName"></div>
+            <div v-if="showCover" :class="$style.coverCell" :style="coverCellStyle"><img v-if="item.meta.picUrl" loading="lazy" :src="item.meta.picUrl" :aria-label="item.meta.albumName"></div>
             <span class="select name" :class="$style.titleText" :aria-label="item.alias ? `${item.name} (${item.alias})` : item.name">
               {{ item.name }}<span v-if="item.alias" :class="$style.alias">({{ item.alias }})</span>
             </span>
@@ -55,12 +55,14 @@
           </div>
           <div class="list-item-cell" style="flex: 0 0 20%;">
             <template v-if="getWyArtists(item).length">
-              <button v-if="getWyArtists(item).length > 2" type="button" :class="$style.linkText" @click.stop="showArtistMenu($event, item)">+{{ getWyArtists(item).length }} 位歌手</button>
-              <template v-else><template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist, item.source)">{{ artist.name }}</button></template></template>
+              <material-artist-cells :artists="getWyArtists(item)" @artist-click="openWyArtist($event, item.source)" />
             </template>
             <span v-else class="select" :aria-label="item.singer">{{ item.singer }}</span>
           </div>
-          <div class="list-item-cell" style="flex: 0 0 20%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+          <div class="list-item-cell" style="flex: 0 0 20%;">
+            <button v-if="isAlbumLinkEnabled(item)" type="button" :class="$style.linkText" @click.stop="openWyAlbum(item)">{{ item.meta.albumName }}</button>
+            <span v-else class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span>
+          </div>
           <div class="list-item-cell" style="flex: 0 0 8%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
           <div class="list-item-cell" style="flex: 0 0 18%; padding-left: 0; padding-right: 0;">
             <material-list-buttons :index="index" :download-btn="assertApiSupport(item.source) && item.source != 'local'" @btn-click="handleListBtnClick" />
@@ -88,7 +90,7 @@
             </transition>
           </div>
           <div class="list-item-cell auto name">
-            <div v-if="showCover && item.meta.picUrl" :class="$style.coverCell" :style="coverCellStyle"><img loading="lazy" :src="item.meta.picUrl" :aria-label="item.meta.albumName"></div>
+            <div v-if="showCover" :class="$style.coverCell" :style="coverCellStyle"><img v-if="item.meta.picUrl" loading="lazy" :src="item.meta.picUrl" :aria-label="item.meta.albumName"></div>
             <span class="select name" :class="$style.titleText" :aria-label="item.alias ? `${item.name} (${item.alias})` : item.name">
               {{ item.name }}<span v-if="item.alias" :class="$style.alias">({{ item.alias }})</span>
             </span>
@@ -101,12 +103,14 @@
           </div>
           <div class="list-item-cell" style="flex: 0 0 23%;">
             <template v-if="getWyArtists(item).length">
-              <button v-if="getWyArtists(item).length > 2" type="button" :class="$style.linkText" @click.stop="showArtistMenu($event, item)">+{{ getWyArtists(item).length }} 位歌手</button>
-              <template v-else><template v-for="(artist, artistIndex) in getWyArtists(item)" :key="artist.id || artist.name"><span v-if="artistIndex" :class="$style.linkSep">、</span><button type="button" :class="$style.linkText" @click.stop="openWyArtist(artist, item.source)">{{ artist.name }}</button></template></template>
+              <material-artist-cells :artists="getWyArtists(item)" @artist-click="openWyArtist($event, item.source)" />
             </template>
             <span v-else class="select" :aria-label="item.singer">{{ item.singer }}</span>
           </div>
-          <div class="list-item-cell" style="flex: 0 0 26%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+          <div class="list-item-cell" style="flex: 0 0 26%;">
+            <button v-if="isAlbumLinkEnabled(item)" type="button" :class="$style.linkText" @click.stop="openWyAlbum(item)">{{ item.meta.albumName }}</button>
+            <span v-else class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span>
+          </div>
           <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
         </div>
       </base-virtualized-list>
@@ -379,6 +383,31 @@ export default {
           })
     }
 
+    const isAlbumLinkEnabled = musicInfo => {
+      return !!musicInfo.meta.albumId && !['local', 'xm'].includes(musicInfo.source)
+    }
+    const openWyAlbum = musicInfo => {
+      if (!musicInfo.meta.albumId) return
+      if (musicInfo.source === 'wy') {
+        void router.push({
+          path: '/netease/album',
+          query: {
+            id: String(musicInfo.meta.albumId),
+            name: musicInfo.meta.albumName,
+          },
+        })
+        return
+      }
+      void router.push({
+        path: '/album',
+        query: {
+          source: musicInfo.source,
+          id: String(musicInfo.meta.albumId),
+          name: musicInfo.meta.albumName,
+        },
+      })
+    }
+
     return {
       listItemHeight,
       handleListItemClick,
@@ -418,6 +447,8 @@ export default {
       scrollToTop,
       getWyArtists,
       openWyArtist,
+      isAlbumLinkEnabled,
+      openWyAlbum,
       showArtistMenu,
       artistMenu,
       handleArtistMenuClick,

@@ -1,5 +1,6 @@
 import { onMounted, onBeforeUnmount } from '@common/utils/vueTools'
 import { setWindowBounds, setWindowResizeable } from '@lyric/utils/ipc'
+import { setting } from '@lyric/store/state'
 import { isWin } from '@common/utils'
 
 export default () => {
@@ -12,6 +13,8 @@ export default () => {
   }
 
   const handleLyricDown = (target, x, y) => {
+    // 锁定（鼠标穿透）时禁止进入窗口拖拽状态
+    if (setting['desktopLyric.isLock']) return
     winEvent.isMsDown = true
     winEvent.msDownX = x
     winEvent.msDownY = y

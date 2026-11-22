@@ -514,6 +514,15 @@ export const onLoadeddata = (callback: Noop) => {
   }
 }
 
+export const onLoadedmetadata = (callback: Noop) => {
+  if (!audio) throw new Error('audio not defined')
+
+  audio.addEventListener('loadedmetadata', callback)
+  return () => {
+    audio?.removeEventListener('loadedmetadata', callback)
+  }
+}
+
 export const onLoadstart = (callback: Noop) => {
   if (!audio) throw new Error('audio not defined')
 

@@ -49,6 +49,24 @@ export default {
           size: null,
         }
       }
+      if (formats.includes('ZPGA201')) {
+        types.push({ type: 'atmos', size: null })
+        _types.atmos = {
+          size: null,
+        }
+      }
+      if (formats.includes('ZPGA501')) {
+        types.push({ type: 'atmos_plus', size: null })
+        _types.atmos_plus = {
+          size: null,
+        }
+      }
+      if (formats.includes('ZPLY')) {
+        types.push({ type: 'master', size: null })
+        _types.master = {
+          size: null,
+        }
+      }
       // types.reverse()
       return {
         singer: formatSinger(decodeName(item.artist)),
